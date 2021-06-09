@@ -20,6 +20,7 @@ namespace dd {
         using Entry = ComplexTable<>::Entry;
 
     public:
+        //构造函数,初始化
         ComplexCache():
             chunkID(0), allocationSize(INITIAL_ALLOCATION_SIZE) {
             // allocate first chunk of cache entries
@@ -38,28 +39,29 @@ namespace dd {
         [[nodiscard]] std::size_t getAllocations() const { return allocations; }
         [[nodiscard]] std::size_t getGrowthFactor() const { return GROWTH_FACTOR; }
 
+        //
         [[nodiscard]] Complex getCachedComplex() {
             // an entry is available on the stack
             if (available != nullptr) {
                 assert(available->next != nullptr);
-                auto entry = Complex{available, available->next};
+                auto entry = Complex{available, available->next}; //定义一个新记录
                 available  = entry.i->next;
                 count += 2;
                 return entry;
             }
 
             // new chunk has to be allocated
-            if (chunkIt == chunkEndIt) {
-                chunks.emplace_back(allocationSize);
-                allocations += allocationSize;
-                allocationSize *= GROWTH_FACTOR;
-                chunkID++;
-                chunkIt    = chunks[chunkID].begin();
-                chunkEndIt = chunks[chunkID].end();
+            if (chunkIt == chunkEndIt) { //内存区用完了
+                chunks.emplace_back(allocationSize); //在尾部新增一个序号为allocationSize的内存区
+                allocations += allocationSize; //更新总的内存分配空间
+                allocationSize *= GROWTH_FACTOR; //为下一个内存区作准备
+                chunkID++; //增加内存区计数
+                chunkIt    = chunks[chunkID].begin(); //内存区内第一个元素(内存块)
+                chunkEndIt = chunks[chunkID].end(); //内存区内最后一个元素(内存块)
             }
 
             Complex c{};
-            c.r = &(*chunkIt);
+            c.r = &(*chunkIt); //实部虚部各占一个内存块
             ++chunkIt;
             c.i = &(*chunkIt);
             ++chunkIt;
@@ -86,6 +88,7 @@ namespace dd {
             return {&(*chunkIt), &(*(chunkIt + 1))};
         }
 
+        //退出一个cache
         void returnToCache(Complex& c) {
             assert(count >= 2);
             assert(c != Complex::zero);

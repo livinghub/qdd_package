@@ -56,7 +56,7 @@ namespace dd {
     public:
         static constexpr std::size_t maxPossibleQubits = static_cast<std::make_unsigned_t<Qubit>>(std::numeric_limits<Qubit>::max()) + 1U;
         static constexpr std::size_t defaultQubits     = 128;
-        explicit Package(std::size_t nq = defaultQubits):
+        explicit Package(std::size_t nq = defaultQubits): //构造函数
             cn(ComplexNumbers()), nqubits(nq) {
             resize(nq);
         };
@@ -94,20 +94,22 @@ namespace dd {
         /// Vector nodes, edges and quantum states
         ///
     public:
-        struct vNode {
-            std::array<Edge<vNode>, RADIX> e{};    // edges out of this node
-            vNode*                         next{}; // used to link nodes in unique table
+        struct vNode { //向量节点
+            std::array<Edge<vNode>, RADIX> e{};    // 结点的出边 edges out of this node 
+            vNode*                         next{}; // 下一个节点 used to link nodes in unique table 
             RefCount                       ref{};  // reference count
-            Qubit                          v{};    // variable index (nonterminal) value (-1 for terminal)
+            Qubit                          v{};    // 变量索引 variable index (nonterminal) value (-1 for terminal)
 
             static vNode            terminalNode;
             constexpr static vNode* terminal{&terminalNode};
 
+            //判断是否终端节点
             static constexpr bool isTerminal(const vNode* p) { return p == terminal; }
         };
         using vEdge       = Edge<vNode>;
         using vCachedEdge = CachedEdge<vNode>;
 
+        //向量节点的规范化
         vEdge normalize(const vEdge& e, bool cached) {
             auto argmax = -1;
 
@@ -797,7 +799,7 @@ namespace dd {
         }
 
         ///
-        /// Matrix (conjugate) transpose
+        /// Matrix (conjugate) transpose 矩阵共厄转置
         ///
     public:
         UnaryComputeTable<mEdge, mEdge, 4096> matrixTranspose{};
@@ -1038,7 +1040,7 @@ namespace dd {
         }
 
         ///
-        /// Inner product and fidelity
+        /// Inner product and fidelity 内积和保真度
         ///
     public:
         ComputeTable<vEdge, vEdge, vCachedEdge, 4096> vectorInnerProduct{};
@@ -1123,7 +1125,7 @@ namespace dd {
         }
 
         ///
-        /// Kronecker/tensor product
+        /// Kronecker/tensor product 张量积
         ///
     public:
         ComputeTable<vEdge, vEdge, vCachedEdge, 4096> vectorKronecker{};
@@ -1203,7 +1205,7 @@ namespace dd {
         }
 
         ///
-        /// (Partial) trace
+        /// (Partial) trace 偏迹不等式
         ///
     public:
         mEdge partialTrace(const mEdge& a, const std::vector<bool>& eliminate) {
@@ -1599,7 +1601,7 @@ namespace dd {
         }
 
         ///
-        /// Vector and matrix extraction from DDs
+        /// Vector and matrix extraction from DDs 从dd中提出向量和矩阵
         ///
     public:
         /// Get a single element of the vector or matrix represented by the dd with root edge e
@@ -1952,7 +1954,7 @@ namespace dd {
         }
 
         ///
-        /// Deserialization
+        /// Deserialization 反序列化
         /// Note: do not rely on the binary format being portable across different architectures/platforms
         ///
     public:

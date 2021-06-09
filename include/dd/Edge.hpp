@@ -15,8 +15,8 @@
 namespace dd {
     template<class Node>
     struct Edge {
-        Node*   p;
-        Complex w;
+        Node*   p; //边指向的结点?
+        Complex w; //边的权值
 
         /// Comparing two DD edges with another involves comparing the respective pointers
         /// and checking whether the corresponding weights are "close enough" according to a given tolerance

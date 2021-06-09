@@ -17,8 +17,8 @@ namespace dd {
     using CTEntry = ComplexTable<>::Entry;
 
     struct Complex {
-        CTEntry* r;
-        CTEntry* i;
+        CTEntry* r; //实部
+        CTEntry* i; //虚部
 
         static Complex zero;
         static Complex one;

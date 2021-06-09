@@ -23,6 +23,7 @@ namespace dd {
     struct ComplexValue {
         fp r, i;
 
+        //复数近似相等判断
         [[nodiscard]] inline bool approximatelyEquals(const ComplexValue& c) const {
             return std::abs(r - c.r) < ComplexTable<>::tolerance() &&
                    std::abs(i - c.i) < ComplexTable<>::tolerance();
@@ -38,6 +39,7 @@ namespace dd {
                    std::abs(i) < ComplexTable<>::tolerance();
         }
 
+        //复数==运算重载
         inline bool operator==(const ComplexValue& other) const {
             return r == other.r && i == other.i;
         }
@@ -46,11 +48,13 @@ namespace dd {
             return !operator==(other);
         }
 
+        //读取复数虚实两部
         void readBinary(std::istream& is) {
             is.read(reinterpret_cast<char*>(&r), sizeof(decltype(r)));
             is.read(reinterpret_cast<char*>(&i), sizeof(decltype(i)));
         }
 
+        //写复数虚实两部
         void writeBinary(std::ostream& os) const {
             os.write(reinterpret_cast<const char*>(&r), sizeof(decltype(r)));
             os.write(reinterpret_cast<const char*>(&i), sizeof(decltype(i)));

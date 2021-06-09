@@ -30,15 +30,21 @@ namespace dd {
     /// \tparam GROWTH_PERCENTAGE percentage that the allocations' size shall grow over time
     /// \tparam INITIAL_GC_LIMIT number of nodes initially used as garbage collection threshold
     /// \tparam GC_INCREMENT absolute number of nodes to increase the garbage collection threshold after garbage collection has been performed
+    //NBUCKET 哈希桶的数量
+    //INITIAL_ALLOCATION_SIZE 初始分配节点的大小
+    //GROWTH_PERCENTAGE 增长大小比率
+    //INITIAL_GC_LIMIT 垃圾回收初始阀门
+    //GC_INCREMENT 垃圾回收阀门增长
     template<class Node, std::size_t NBUCKET = 32768, std::size_t INITIAL_ALLOCATION_SIZE = 2048, std::size_t GROWTH_FACTOR = 2, std::size_t INITIAL_GC_LIMIT = 131072>
     class UniqueTable {
     public:
+        //构造函数(初始化)
         explicit UniqueTable(std::size_t nvars):
             nvars(nvars), chunkID(0), allocationSize(INITIAL_ALLOCATION_SIZE), gcLimit(INITIAL_GC_LIMIT) {
             // allocate first chunk of nodes
-            chunks.emplace_back(allocationSize);
-            allocations += allocationSize;
-            allocationSize *= GROWTH_FACTOR;
+            chunks.emplace_back(allocationSize); //申请一个序号为allocationSize的新节点(内存区)
+            allocations += allocationSize; //更新记录
+            allocationSize *= GROWTH_FACTOR; //更新下次的节点号
             chunkIt    = chunks[0].begin();
             chunkEndIt = chunks[0].end();
         }
@@ -47,6 +53,7 @@ namespace dd {
 
         static constexpr std::size_t MASK = NBUCKET - 1;
 
+        //重新分配唯一表大小
         void resize(std::size_t nq) {
             nvars = nq;
             tables.resize(nq);
@@ -55,6 +62,7 @@ namespace dd {
             activeNodeCount = std::accumulate(active.begin(), active.end(), 0UL);
         }
 
+        //计算唯一表哈希key
         static std::size_t hash(const Node* p) {
             std::size_t key = 0;
             for (std::size_t i = 0; i < p->e.size(); ++i) {
@@ -89,16 +97,16 @@ namespace dd {
                 return e;
 
             lookups++;
-            const auto key = hash(e.p);
-            const auto v   = e.p->v;
+            const auto key = hash(e.p); //边指向的节点的hash key
+            const auto v   = e.p->v; //边指向的节点的值
 
             // successors of a node shall either have successive variable numbers or be terminals
             for ([[maybe_unused]] const auto& edge: e.p->e)
                 assert(edge.p->v == v - 1 || edge.isTerminal());
 
-            Node* p = tables[v][key];
-            while (p != nullptr) {
-                if (e.p->e == p->e) {
+            Node* p = tables[v][key]; //在key桶里面找一个值为v的节点
+            while (p != nullptr) { //存在这种节点
+                if (e.p->e == p->e) { //如果两个节点的边是相等
                     // Match found
                     if (e.p != p && !keepNode) {
                         // put node pointed to by e.p on available chain
@@ -120,8 +128,8 @@ namespace dd {
             }
 
             // node was not found -> add it to front of unique table bucket
-            e.p->next      = tables[v][key];
-            tables[v][key] = e.p;
+            e.p->next      = tables[v][key]; //这里节点的next指针就是null
+            tables[v][key] = e.p; //把这个节点放进表中
             nodeCount++;
             peakNodeCount = std::max(peakNodeCount, nodeCount);
 
@@ -153,6 +161,7 @@ namespace dd {
             return p;
         }
 
+        //把节点取到available链
         void returnNode(Node* p) {
             p->next   = available;
             available = p;
@@ -357,10 +366,10 @@ namespace dd {
 
         // unique tables (one per input variable)
         std::size_t        nvars = 0;
-        std::vector<Table> tables{nvars};
+        std::vector<Table> tables{nvars}; //这是一个序列容器,由两个值确定[结点值,key值(桶值)]
 
         Node*                                available{};
-        std::vector<std::vector<Node>>       chunks{};
+        std::vector<std::vector<Node>>       chunks{};  
         std::size_t                          chunkID;
         typename std::vector<Node>::iterator chunkIt;
         typename std::vector<Node>::iterator chunkEndIt;
