@@ -464,6 +464,7 @@ namespace dd {
                     return random(in, varMap, mt);
                 }
 			case Window3: return window3(in, varMap);
+			case linearSift: return std::get<0>(linearSifting());
 		}
 
 		return in;
@@ -474,15 +475,15 @@ namespace dd {
 /// \param varMap stores the variable mapping (cf. dynamicReorder(...))
 /// \return the resulting decision diagram (and the changed variable map and output permutation, which are returned as reference)
     std::tuple<Edge, unsigned int, unsigned int> Package::sifting(Edge in, std::map<unsigned short, unsigned short>& varMap) {
-		const auto n = static_cast<short>(in.p->v + 1);
+		const auto n = static_cast<short>(in.p->v + 1); //变量个数
 
-		std::vector<bool> free(n, true);
-		std::map<unsigned short, unsigned short> invVarMap{};
+		std::vector<bool> free(n, true); //记录数组
+		std::map<unsigned short, unsigned short> invVarMap{}; //电路qubit到DDqibit的映射
 		for (const auto & i : varMap)
-			invVarMap[i.second] = i.first;
+			invVarMap[i.second] = i.first; //DDqubit 到 电路qubit 的映射
 
 		computeMatrixProperties = Disabled;
-		Edge root{in};
+		Edge root{in}; //声明root边
 
 		//std::clog << "  Start Sifting. n=" << std::setw(2) << n << " -- ";
 //		for (auto &entry: varMap) {
@@ -490,11 +491,11 @@ namespace dd {
 //		}
 		//std::clog << "\n";
 
-		unsigned int total_max = size(in);
+		unsigned int total_max = size(in); //DD的大小
 		unsigned int total_min = total_max;
 
         short pos = -1;
-        for (int i = 0; i < n; ++i) {
+        for (int i = 0; i < n; ++i) { //遍历各个变量
             assert(is_globally_consistent_dd(in));
             unsigned long min = size(in);
             unsigned long max = 0;

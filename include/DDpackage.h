@@ -145,7 +145,7 @@ namespace dd {
     };
 
 	enum DynamicReorderingStrategy {
-		None, Sifting, Random, Window3
+		None, Sifting, Random, Window3, linearSift
 	};
 
 	enum Mode {
@@ -318,6 +318,7 @@ namespace dd {
 	    std::tuple<Edge, unsigned int, unsigned int> sifting(Edge in, std::map<unsigned short, unsigned short>& varMap);
 		Edge random(Edge in, std::map<unsigned short, unsigned short> &varMap, std::mt19937_64 &mt);
 		Edge window3(Edge in, std::map<unsigned short, unsigned short>& varMap);
+		std::tuple<Edge, unsigned int, unsigned int> Package::linearSifting(Edge in, std::map<unsigned short, unsigned short>& varMap);
 
 
 		// utility
