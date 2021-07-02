@@ -973,10 +973,11 @@ namespace dd {
 
     // make a DD nonterminal node and return an edge pointing to it
     // node is not recreated if it already exists
+    //// 输入结点的变量索引值为index-1，该结点的4条出边
     Edge Package::makeNonterminal(const short v, const Edge *edge, const bool cached) {
-        Edge e{getNode(), CN::ONE};
+        Edge e{getNode(), CN::ONE}; //新建一个边权值是1的结点（边）
         assert(e.p->ref == 0);
-        e.p->v = v;
+        e.p->v = v; //给新建的边赋上是index-1的结点的数据
         e.p->normalizationFactor = CN::ONE;
         e.p->computeMatrixProperties = computeMatrixProperties;
         assert(e.p->v == v);
@@ -985,7 +986,7 @@ namespace dd {
         assert(v - 1 == edge[2].p->v || isTerminal(edge[2]));
         assert(v - 1 == edge[3].p->v || isTerminal(edge[3]));
 
-        std::memcpy(e.p->e, edge, NEDGE * sizeof(Edge));
+        std::memcpy(e.p->e, edge, NEDGE * sizeof(Edge)); //给新建的结点的四个孩子赋上索引是index-1的四个结点的相同位置的4个孩子
         assert(e.p->v == v);
         e = normalize(e, cached); // normalize it
         assert(e.p->v == v || isTerminal(e));

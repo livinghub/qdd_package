@@ -241,7 +241,9 @@ namespace dd {
         unsigned int node_substitutions = 0;           // number of nodes substituted during reordering
         unsigned int node_collapses = 0;               // number of nodes collapses during reordering
         unsigned int exchange_base_cases = 0;          // number of nodes substituted during reordering
-        unsigned long maxActive = 0;                   // maximum number of active nodes
+		unsigned int linear_in_place = 0;              // number of nodes substituted during reordering
+        bool xorMat[MAXN][MAXN]{ };						//XORs two var of the linear transform matrix.
+		unsigned long maxActive = 0;                   // maximum number of active nodes
         unsigned long gc_calls{};                      // number of calls to the garbage collector
         unsigned long gc_runs{};                       // number of times the GC actually ran
         unsigned long UTcol{}, UTmatch{}, UTlookups{}; // counter for collisions / matches in hash tables
@@ -318,8 +320,11 @@ namespace dd {
 	    std::tuple<Edge, unsigned int, unsigned int> sifting(Edge in, std::map<unsigned short, unsigned short>& varMap);
 		Edge random(Edge in, std::map<unsigned short, unsigned short> &varMap, std::mt19937_64 &mt);
 		Edge window3(Edge in, std::map<unsigned short, unsigned short>& varMap);
-		std::tuple<Edge, unsigned int, unsigned int> Package::linearSifting(Edge in, std::map<unsigned short, unsigned short>& varMap);
-
+		std::tuple<Edge, unsigned int, unsigned int> linearSifting(Edge in, std::map<unsigned short, unsigned short>& varMap);
+		void linearInPlace(unsigned short i, Edge in);
+		void linearInPlace2(NodePtr p, unsigned short index, Edge in);
+		void xorInit();
+		void xorLinear(unsigned short index);
 
 		// utility
         /// Traverse DD and return product of edge weights along the way
