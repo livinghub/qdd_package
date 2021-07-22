@@ -357,6 +357,7 @@ namespace dd {
     }
 
 	void Package::exchangeBaseCase(unsigned short i, Edge in) { //传入变量的索引和dd的根指针
+		std::clog << "ex:" << i << ", ";
 	    exchange_base_cases++;
 		// copy unique table from higher variable and empty it
 		std::array<NodePtr, NBUCKET> table{};
@@ -500,7 +501,7 @@ namespace dd {
             unsigned long min = size(in);
             unsigned long max = 0;
 
-            //std::clog << "    " << i << "/" << n << " size=" << min << " | ";
+            std::clog << "    " << i << "/" << n << " size=" << min << " | ";
             for (short j = 0; j < n; j++) {
                 if (free.at(varMap[j]) && active.at(varMap[j]) > max) { //该变量没有被处理过并该变量存在结点
                     max = active.at(varMap[j]); //更新max
@@ -515,7 +516,7 @@ namespace dd {
             if (pos < n / 2) {  // variable is in lower half -> sifting to bottom first
                 // sifting to bottom
                 while (pos > 0) {
-                    exchangeBaseCase(pos, in); //
+                    exchangeBaseCase(pos, in);
                     auto in_size = size(in);
                     total_min = std::min(total_min, in_size);
                     total_max = std::max(total_max, in_size);
