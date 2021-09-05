@@ -1,11 +1,38 @@
 #include "DDpackage.h"
 
-
 namespace dd {
 
+	void Package::printLTMap(std::map<unsigned short, unsigned short>& varMap)
+	{
+		unsigned short nqubits = varMap.size();
+		for(int i=0; i<nqubits; ++i)
+		{
+			std::cout << i << "	:	";
+			for(int j=0; j<nqubits; ++j)
+			{
+				if(xorMat[i][j] > 0)
+					std::cout << varMap.at(j) << " ";
+			}
+			std::cout << std::endl;
+		}
+	}
 
-    void Package::xorInit() { //初始化lt矩阵
-        for(int i=0; i<MAXN; ++i) {
+	void Package::printLTMat(std::map<unsigned short, unsigned short>& varMap)
+	{
+		unsigned short nqubits = varMap.size();
+		for(int i=0; i<nqubits; ++i)
+		{
+			for(int j=0; j<nqubits; ++j)
+			{
+				std::cout << Package::xorMat[varMap.at(i)][varMap.at(j)] << " ";
+			}
+			std::cout << std::endl;
+		}
+	}
+
+    void Package::xorInit(std::map<unsigned short, unsigned short>& varMap) { //初始化lt矩阵
+		const unsigned short varNum = varMap.size();
+        for(int i=0; i<varNum; ++i) {
             Package::xorMat[i][i] = 1;
         }
     }
@@ -15,10 +42,74 @@ namespace dd {
             Package::xorMat[index][i] ^= Package::xorMat[index-1][i];
     }
 
+	//更新lt矩阵，只维护一个lt矩阵
+	void Package::xorLinear(unsigned short index, std::map<unsigned short, unsigned short>& varMap) { //更新lt矩阵
+        const unsigned short varNum = varMap.size();
+		std::pair<short, short> xorEntry(varMap[index], varMap[index-1]);
+		//debug
+		// for(const auto& Q: varMap) {
+		// 	std::clog <<"\t" << Q.first << ": " << Q.second << std::endl;
+		// }
+
+		for(int i=0; i<varNum; ++i)
+            xorMat[varMap[index]][i] ^= xorMat[varMap[index-1]][i];
+			//xorMat[index][i] ^= xorMat[index-1][i];
+
+		//记录xor的组合和顺序
+		if(!LTpath.empty() && LTpath.back().first==xorEntry.first && LTpath.back().second==xorEntry.second) {
+			LTpath.pop_back();
+		} else {
+			LTpath.emplace_back(xorEntry);
+		}
+    }
+
+
+	void Package::linearInPlace(unsigned short i, Edge in, std::map<unsigned short, unsigned short>& varMap, bool updateLTMat) { //传入变量的索引和dd的根指针,和变量映射
+		std::clog << "lt:" << i << ", ";
+
+		// copy unique table from higher variable and empty it
+		std::array<NodePtr, NBUCKET> table{};
+		for (unsigned short bucket=0; bucket < NBUCKET; ++bucket) {
+			table.at(bucket) = Unique[i][bucket]; //把i变量的唯一表拿出来
+			Unique[i][bucket] = nullptr; //把属于i变量的唯一表清空
+		} //到此，已经把i变量的唯一表拿出来了，并且清空了它
+
+		initComputeTable(); //初始化计算表
+
+		// iterate over all obtained nodes
+		for (unsigned short bucket=0; bucket < NBUCKET; ++bucket) { //对i变量的每个哈希桶进行遍历
+			NodePtr p = table[bucket]; //取出当前桶里的冲突链
+			while (p != nullptr) { //遍历冲突链的每个结点
+				NodePtr pnext = p->next;
+				assert(p->v == i); //确认当前指针指向的结点就是属于i变量的
+                assert(i-1 == p->e[0].p->v || isTerminal(p->e[0])); //确认这个结点的四个孩子结点都是属于i-1变量，或是它的孩子是终端结点
+                assert(i-1 == p->e[1].p->v || isTerminal(p->e[1]));
+                assert(i-1 == p->e[2].p->v || isTerminal(p->e[2]));
+                assert(i-1 == p->e[3].p->v || isTerminal(p->e[3]));
+				if (p->ref != 0) { //确认这个结点引用计数不是0
+                    linearInPlace2(p, i, in); //传入该结点的指针，变量索引，DD指针
+				}
+                assert(p->v == i);
+                assert(i-1 == p->e[0].p->v || isTerminal(p->e[0]));
+                assert(i-1 == p->e[1].p->v || isTerminal(p->e[1]));
+                assert(i-1 == p->e[2].p->v || isTerminal(p->e[2]));
+                assert(i-1 == p->e[3].p->v || isTerminal(p->e[3]));
+				p = pnext; //轮到冲突链的下一个结点
+			}
+		}
+
+		linear_in_place++;
+		if(updateLTMat) {
+			xorLinear(i, varMap); //更新线性变换矩阵
+		}
+		
+	}
+
 	void Package::linearInPlace(unsigned short i, Edge in) { //传入变量的索引和dd的根指针
 		std::clog << "lt:" << i << ", ";
 
-		linear_in_place++;
+		// linear_in_place++;
+		// xorLinear(i); //更新线性变换矩阵
 
 		// copy unique table from higher variable and empty it
 		std::array<NodePtr, NBUCKET> table{};
@@ -54,27 +145,32 @@ namespace dd {
 
 	void Package::linearInPlace2(NodePtr p, unsigned short index, Edge in) {
 		Edge t[NEDGE][NEDGE]{ }; //创建一个exchange用的矩阵
-        Edge LTt[NEDGE][NEDGE]{ }; //lt用到的矩阵
+        //Edge LTt[NEDGE][NEDGE]{ }; //lt用到的矩阵
 		assert(index > 0);
 		assert(index == p->v); //确定传入结点是属于index变量
+		//xorLinear(index);
 
+		//for lt
+		int x,y;
         // creating matrix T
 		for (int i = 0; i < NEDGE; i++) { //遍历要处理结点的每条出边
+			x = i;
+			y = 0;
 			for (int j = 0; j < NEDGE; j++) { //遍历它的孩子结点的每一条出边
 				if (p->e[i].p->v == index - 1) { //如果要处理结点的孩子结点是属于它的下一个变量的（如本结点是i变量的，它的孩子结点是i-1变量的）
 				    assert(!isTerminal(p->e[i]));
 
-					t[j][i] = p->e[i].p->e[j]; //结点第i条边的孩子的第j条边放入矩阵中
+					t[x][y] = p->e[i].p->e[j]; //结点第i条边的孩子的第j条边放入矩阵中
 					auto c = cn.getTempCachedComplex(); //拿到一个临时复数c
 					CN::mul(c, p->e[i].p->e[j].w, p->e[i].w); //复数乘法，结点出边权值*它的孩子的出边权值=c
 					if (p->e[i].p->normalizationFactor != CN::ONE) { //如果改结点的规范因子不是1，就把c乘上规范因子
 						CN::mul(c, c, p->e[i].p->normalizationFactor);
 					}
-					t[j][i].w = cn.lookup(c); //给记录的边附上权值c
+					t[x][y].w = cn.lookup(c); //给记录的边附上权值c
 				} else if (isTerminal(p->e[i])) { //要处理结点的孩子结点是终端结点
 					// edge pointing to a terminal
-					t[j][i] = p->e[i]; //矩阵记录的就是结点的出边
-                    assert(t[j][i].p->normalizationFactor == CN::ONE); //这样的话确定这条边的结点规范因子是1
+					t[x][y] = p->e[i]; //矩阵记录的就是结点的出边
+                    assert(t[x][y].p->normalizationFactor == CN::ONE); //这样的话确定这条边的结点规范因子是1
 				} else { //上面两种情况都不是的话，就出问题了，出错处理
 				    debugnode(p);
 				    std::stringstream hex_addr;
@@ -84,24 +180,36 @@ namespace dd {
 				        + " pointing to a skipped variable: "
 				        + std::to_string(index) + " --> " + std::to_string(p->e[i].p->v));
 				}
+				//for lt
+				if(i%2==0) {
+					x = (x+1+NEDGE)%NEDGE;
+					//y = (y+1+NEDGE)%NEDGE;
+					++y;
+				} else {
+					x = (x-1+NEDGE)%NEDGE;
+					//y = (y+1+NEDGE)%NEDGE;
+					++y;
+				}
 			}
+			
+			
 		} //到这里，要处理的结点和它的孩子结点全都处理完，并把结点的孩子结点的出边和联合权值放入矩阵
         //std::memcpy(t, LTt, sizeof(t)); //复制t矩阵给tmpt
 
-        for(int x=0, i, j; x<NEDGE; ++x) { //重排矩阵方便处理
-            i=x, j=0;
-            if(x%2 == 0)
-                for(int y=0; y<NEDGE; ++y) LTt[x][y] = t[(NEDGE+i++)%NEDGE][j++];
-            else 
-                for(int y=0; y<NEDGE; ++y) LTt[x][y] = t[(NEDGE+i--)%NEDGE][j++];
-        }
+        // for(int x=0, i, j; x<NEDGE; ++x) { //重排矩阵方便处理
+        //     i=x, j=0;
+        //     if(x%2 == 0)
+        //         for(int y=0; y<NEDGE; ++y) LTt[y][x] = t[(NEDGE+i++)%NEDGE][j++];
+        //     else 
+        //         for(int y=0; y<NEDGE; ++y) LTt[y][x] = t[(NEDGE+i--)%NEDGE][j++];
+        // }
 
         assert(is_locally_consistent_dd({p, CN::ZERO}));
 
         // creating new nodes and appending corresponding edges
 		Edge newEdges[NEDGE]{ }; //创建要处理结点（P）的一组（4条）出边
 		for (int x = 0; x < NEDGE; ++x) { //搞定p结点的四个孩子
-			newEdges[x] = makeNonterminal(static_cast<short>(index - 1), LTt[x]); //规范新的index-1结点的四个孩子结点，输入index-1和index-1（4个）结点里面的第x条边
+			newEdges[x] = makeNonterminal(static_cast<short>(index - 1), t[x]); //规范新的index-1结点的四个孩子结点，输入index-1和index-1（4个）结点里面的第x条边
             incRef(newEdges[x]); //给新结点加引用计数
 			assert(is_locally_consistent_dd(newEdges[x]));
 		}//到此，变量索引为index-1的四个结点完成规范化
@@ -112,9 +220,9 @@ namespace dd {
 		assert(p->ref > 0);
         reuseNonterminal(static_cast<short>(index), newEdges, p, in); //对p（要处理的结点）重新规范化,传入index，刚刚生成新”第二层“结点，第一层结点指针，DD指针
 		// p might be discarded at this point if nodes were substituted
-
-        xorLinear(index);
 	}
+
+
 
     ///linear sifting 
 	std::tuple<Edge, unsigned int, unsigned int> Package::linearSifting(Edge in, std::map<unsigned short, unsigned short>& varMap) {
@@ -141,7 +249,8 @@ namespace dd {
 
 		/**/
 		
-		xorInit();
+		xorInit(varMap);
+
 		/**/
 
 
@@ -167,30 +276,32 @@ namespace dd {
                 // sifting to bottom 向下尝试
                 while (pos > 0) {
 					std::clog << "向下尝试";
-                    //exchangeBaseCase(pos, in); //先对pos，pos-1执行swap
-                    auto in_size = size(in);
-					linearInPlace(pos, in); //再pos，pos-1执行L.T.
+                    exchangeBaseCase(pos, in); //先对pos，pos-1执行swap
+                    auto ex_size = size(in);
+					//linearInPlace(pos, in); //再pos，pos-1执行L.T.
+					linearInPlace(pos, in, varMap); //再pos，pos-1执行L.T.
 					auto lt_size = size(in);
 
-                    total_min = std::min({total_min, in_size, lt_size}); //记录ls过程中产生的最大和最小size
-                    total_max = std::max({total_max, in_size, lt_size});
+                    total_min = std::min({total_min, ex_size, lt_size}); //记录ls过程中产生的最大和最小size
+                    total_max = std::max({total_max, ex_size, lt_size});
 
-                    //std::clog << "↓" << in_size << " ";
+                    //std::clog << "↓" << ex_size << " ";
                     assert(is_locally_consistent_dd(in));
                     --pos; //变量位置下移一位
 
-					if(in_size <= lt_size+in_size){ //swap效果更好
+					if(ex_size <= lt_size){ //swap效果更好
 						//** 抵消lt
 						std::clog << "抵消lt";
-						linearInPlace(pos+1, in); //**可能位置还有问题
-						if (in_size < min) {
-							min = in_size;
+						//linearInPlace(pos+1, in);
+						linearInPlace(pos+1, in, varMap);
+						if (ex_size < min) {
+							min = ex_size;
 							optimalPos = pos;
 						}
 					} else { //lt效果更好
 						//** 记录这个步骤用了lt
 						ltFlag.at(pos+1) = true;
-
+						++valid_LT_Num;
 						if (lt_size < min) {
 							min = lt_size;
 							optimalPos = pos;
@@ -203,14 +314,19 @@ namespace dd {
 				while (pos < originalPos)
 				{
 					std::clog << "向上还原";
-					if(ltFlag.at(pos+1))
+					if(ltFlag.at(pos+1)) //如果用了lt
 					{
 						std::clog << "and LT";
-						linearInPlace(pos+1, in);
+						//linearInPlace(pos+1, in);
+						linearInPlace(pos+1, in, varMap);
+						--valid_LT_Num;
 						ltFlag.at(pos+1) = false;
 					}
 					exchangeBaseCase(pos+1, in);
-					exchangeBaseCase(pos+1, in);
+					//exchangeBaseCase(pos+1, in);
+					auto in_size = size(in);
+                    total_min = std::min(total_min, in_size);
+                    total_max = std::max(total_max, in_size);
 					++pos;
 				}
 				//std::clog << "+++++++++++" << std::endl;
@@ -218,30 +334,32 @@ namespace dd {
                 // sifting to top 向上尝试
                 while (pos < n - 1) {
 					std::clog << "向上尝试";
-                    //exchangeBaseCase(pos+1, in); //先执行swap
-                    auto in_size = size(in);
-					linearInPlace(pos+1, in);
+                    exchangeBaseCase(pos+1, in); //先执行swap
+                    auto ex_size = size(in);
+					//linearInPlace(pos+1, in);
+					linearInPlace(pos+1, in, varMap);
 					auto lt_size = size(in);
 							
 
-                    total_min = std::min({total_min, in_size, lt_size}); //记录ls过程中产生的最大和最小size
-                    total_max = std::max({total_max, in_size, lt_size});
-                    //std::clog << "↑" << in_size << " ";
+                    total_min = std::min({total_min, ex_size, lt_size}); //记录ls过程中产生的最大和最小size
+                    total_max = std::max({total_max, ex_size, lt_size});
+                    //std::clog << "↑" << ex_size << " ";
                     assert(is_locally_consistent_dd(in));
                     ++pos; //变量位置上移一位
 					
-					if(in_size <= lt_size+in_size){ //swap效果更好
+					if(ex_size <= lt_size){ //swap效果更好
 						//** 抵消lt
 						std::clog << "抵消lt";
-						linearInPlace(pos, in);
-						if (in_size < min) {
-							min = in_size;
+						//linearInPlace(pos, in);
+						linearInPlace(pos, in, varMap);
+						if (ex_size < min) {
+							min = ex_size;
 							optimalPos = pos;
 						}
 					} else { //lt效果更好
 						//** 记录这个步骤用了lt
 						ltFlag.at(pos) = true;
-
+						++valid_LT_Num;
 						if (lt_size < min) {
 							min = lt_size;
 							optimalPos = pos;
@@ -257,11 +375,13 @@ namespace dd {
 					if(ltFlag.at(pos)) //如果到这个位置用了lt，那么需要把它抵消掉
 					{ 
 						std::clog << "and LT";
-						linearInPlace(pos, in);
+						//linearInPlace(pos, in);
+						linearInPlace(pos, in, varMap);
+						--valid_LT_Num;
 						ltFlag.at(pos) = false;
 					}
                     exchangeBaseCase(pos, in); //再次执行swap抵消操作
-					exchangeBaseCase(pos, in);
+					//exchangeBaseCase(pos, in);
                     auto in_size = size(in);
                     total_min = std::min(total_min, in_size);
                     total_max = std::max(total_max, in_size);
@@ -274,29 +394,31 @@ namespace dd {
                 // sifting to top 向上尝试
                 while (pos < n - 1) {
 					std::clog << "向上尝试";
-                    //exchangeBaseCase(pos+1, in); //先执行swap
-                    auto in_size = size(in);
-					linearInPlace(pos+1, in); //再执行L.T.
+                    exchangeBaseCase(pos+1, in); //先执行swap
+                    auto ex_size = size(in);
+					//linearInPlace(pos+1, in); //再执行L.T.
+					linearInPlace(pos+1, in, varMap);
 					auto lt_size = size(in);
 
-                    total_min = std::min({total_min, in_size, lt_size}); //记录ls过程中产生的最大和最小size
-                    total_max = std::max({total_max, in_size, lt_size});
-                    //std::clog << "↑" << in_size << " ";
+                    total_min = std::min({total_min, ex_size, lt_size}); //记录ls过程中产生的最大和最小size
+                    total_max = std::max({total_max, ex_size, lt_size});
+                    //std::clog << "↑" << ex_size << " ";
                     assert(is_locally_consistent_dd(in));
                     ++pos; //变量位置上移一位
 					
-					if(in_size <= lt_size+in_size){ //swap效果更好
+					if(ex_size <= lt_size){ //swap效果更好
 						//** 抵消lt
 						std::clog << "抵消lt";
-						linearInPlace(pos, in);
-						if (in_size < min) {
-							min = in_size;
+						//linearInPlace(pos, in);
+						linearInPlace(pos, in, varMap);
+						if (ex_size < min) {
+							min = ex_size;
 							optimalPos = pos;
 						}
 					} else { //lt效果更好
 						//** 记录这个步骤用了lt
 						ltFlag.at(pos) = true;
-
+						++valid_LT_Num;
 						if (lt_size < min) {
 							min = lt_size;
 							optimalPos = pos;
@@ -311,41 +433,48 @@ namespace dd {
 					if(ltFlag.at(pos))
 					{
 						std::clog << "and LT";
-						linearInPlace(pos, in);
+						//linearInPlace(pos, in);
+						linearInPlace(pos, in, varMap);
+						--valid_LT_Num;
 						ltFlag.at(pos) = false;
 					}
 					exchangeBaseCase(pos, in);
-					exchangeBaseCase(pos, in);
+					//exchangeBaseCase(pos, in);
+					auto in_size = size(in);
+                    total_min = std::min(total_min, in_size);
+                    total_max = std::max(total_max, in_size);
 					--pos;
 				}
 				//std::clog << "-------------------" << std::endl;
                 // sifting to bottom 向下尝试
                 while (pos > 0) {
 					std::clog << "向下尝试";
-                    //exchangeBaseCase(pos, in); //先执行swap
-                    auto in_size = size(in);
-					linearInPlace(pos, in); //再执行L.T.
+                    exchangeBaseCase(pos, in); //先执行swap
+                    auto ex_size = size(in);
+					//linearInPlace(pos, in); //再执行L.T.
+					linearInPlace(pos, in, varMap);
 					auto lt_size = size(in);
 
-                    total_min = std::min({total_min, in_size, lt_size}); //记录ls过程中产生的最大和最小size
-                    total_max = std::max({total_max, in_size, lt_size});
+                    total_min = std::min({total_min, ex_size, lt_size}); //记录ls过程中产生的最大和最小size
+                    total_max = std::max({total_max, ex_size, lt_size});
 
-                    //std::clog << "↓" << in_size << " ";
+                    //std::clog << "↓" << ex_size << " ";
                     assert(is_locally_consistent_dd(in));
                     --pos; //变量位置下移一位
 
-					if(in_size <= lt_size+in_size){ //swap效果更好
+					if(ex_size <= lt_size){ //swap效果更好
 						//** 抵消lt
 						std::clog << "抵消lt";
-						linearInPlace(pos+1, in); 
-						if (in_size < min) {
-							min = in_size;
+						//linearInPlace(pos+1, in); 
+						linearInPlace(pos+1, in, varMap);
+						if (ex_size < min) {
+							min = ex_size;
 							optimalPos = pos;
 						}
 					} else { //lt效果更好
 						//** 记录这个步骤用了lt
 						ltFlag.at(pos+1) = true;
-
+						++valid_LT_Num;
 						if (lt_size < min) {
 							min = lt_size;
 							optimalPos = pos;
@@ -362,11 +491,13 @@ namespace dd {
 					if(ltFlag.at(pos+1)) 
 					{
 						std::clog << "and LT";
-						linearInPlace(pos+1, in);
+						//linearInPlace(pos+1, in);
+						linearInPlace(pos+1, in, varMap);
+						--valid_LT_Num;
 						ltFlag.at(pos+1) = false;
 					}
                     exchangeBaseCase(pos+1, in);
-					exchangeBaseCase(pos+1, in);
+					//exchangeBaseCase(pos+1, in);
                     auto in_size = size(in);
                     total_min = std::min(total_min, in_size);
                     total_max = std::max(total_max, in_size);

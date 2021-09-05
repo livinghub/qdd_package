@@ -358,6 +358,7 @@ namespace dd {
 
 	void Package::exchangeBaseCase(unsigned short i, Edge in) { //传入变量的索引和dd的根指针
 		std::clog << "ex:" << i << ", ";
+		
 	    exchange_base_cases++;
 		// copy unique table from higher variable and empty it
 		std::array<NodePtr, NBUCKET> table{};
@@ -465,7 +466,8 @@ namespace dd {
                     return random(in, varMap, mt);
                 }
 			case Window3: return window3(in, varMap);
-			case linearSift: return std::get<0>(linearSifting(in, varMap));
+			//case linearSift: return std::get<0>(linearSifting(in, varMap));
+			case linearSift: return linearAndSiftingAux(in, varMap);
 		}
 
 		return in;
