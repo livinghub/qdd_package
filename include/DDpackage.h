@@ -326,7 +326,7 @@ namespace dd {
 		// for linear sifting
 		unsigned int linear_in_place = 0;              // number of nodes substituted during reordering
         bool xorMat[MAXN][MAXN]{ };						//XORs two var of the linear transform matrix.
-		unsigned int valid_LT_Num = 0;  //有效LT次数
+		unsigned int valid_LT_Num = 0;  //有效LT次数, 仅在linear sifting v1中有效
 		std::vector<std::vector<Move>> Movetab;
 		std::vector<std::pair<short, short>> LTpath; //dd val index
 

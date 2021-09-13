@@ -359,6 +359,8 @@ namespace dd {
         std::clog<<std::endl;
     }
 
+
+    // undo
     bool Package::findLTPath(
         std::vector<Move> movesUP, 
         std::vector<Move> movesDown, 
@@ -404,6 +406,7 @@ namespace dd {
         
     }
 
+    //输入向上移动和向下移动两段移动记录,找到由原始位置到最好位置的一段记录
     std::vector<Move> findDirPath(std::vector<Move> movesUP, std::vector<Move> movesDown, short orgOps, short optOps) {
         //
         
@@ -431,6 +434,7 @@ namespace dd {
         
     }
 
+    //输入向某个方向尝试的移动记录,找到由原始位置到最好位置的一段记录
     std::vector<Move> findPath(std::vector<Move> moves) {
         //
         
@@ -451,6 +455,7 @@ namespace dd {
         return movePath;
     }
 
+    //输入向上尝试和向下尝试的两段移动记录,找到由原始位置到最好位置的一段记录
     std::vector<Move> findPath(std::vector<Move> movesA, std::vector<Move> movesB) {
         //
         int minA = movesA.front().ddsize, minB = movesB.back().ddsize;
@@ -492,7 +497,7 @@ namespace dd {
     }
 
     //由qmdd to ltqmdd
-	//输入qmdd and 变量映射表；输出ltqmdd
+	//输入qmdd and 变量映射表 Movetab；输出ltqmdd
     Edge Package::qmdd2ltqmdd(
         Edge in, 
         std::map<unsigned short, unsigned short>& varMap,
@@ -534,6 +539,8 @@ namespace dd {
     }
 
 
+// 根据先前执行的linear sifting记录下的 dd变量的lt操作, 对新的qmdd -> ltqmdd
+// 根据LTpath
  Edge Package::qmdd2ltqmdd(
         Edge in, 
         std::map<unsigned short, unsigned short>& varMap
