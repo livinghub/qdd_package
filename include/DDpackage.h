@@ -7,6 +7,7 @@
 #define DDpackage_H
 
 #include "DDcomplex.h"
+#include "DDlinear.h"
 
 #include <unordered_set>
 #include <vector>
@@ -22,6 +23,7 @@
 #include <set>
 #include <random>
 #include <tuple>
+#include <list>
 
 
 
@@ -145,7 +147,7 @@ namespace dd {
     };
 
 	enum DynamicReorderingStrategy {
-		None, Sifting, Random, Window3
+		None, Sifting, Random, Window3, linearSift
 	};
 
 	enum Mode {
@@ -241,7 +243,7 @@ namespace dd {
         unsigned int node_substitutions = 0;           // number of nodes substituted during reordering
         unsigned int node_collapses = 0;               // number of nodes collapses during reordering
         unsigned int exchange_base_cases = 0;          // number of nodes substituted during reordering
-        unsigned long maxActive = 0;                   // maximum number of active nodes
+		unsigned long maxActive = 0;                   // maximum number of active nodes
         unsigned long gc_calls{};                      // number of calls to the garbage collector
         unsigned long gc_runs{};                       // number of times the GC actually ran
         unsigned long UTcol{}, UTmatch{}, UTlookups{}; // counter for collisions / matches in hash tables
@@ -318,7 +320,34 @@ namespace dd {
 	    std::tuple<Edge, unsigned int, unsigned int> sifting(Edge in, std::map<unsigned short, unsigned short>& varMap);
 		Edge random(Edge in, std::map<unsigned short, unsigned short> &varMap, std::mt19937_64 &mt);
 		Edge window3(Edge in, std::map<unsigned short, unsigned short>& varMap);
+		
+		
+		
+		// for linear sifting
+		unsigned int linear_in_place = 0;              // number of nodes substituted during reordering
+        bool xorMat[MAXN][MAXN]{ };						//XORs two var of the linear transform matrix.
+		unsigned int valid_LT_Num = 0;  //有效LT次数
+		std::vector<std::vector<Move>> Movetab;
+		std::vector<std::pair<short, short>> LTpath; //dd val index
 
+		void linearInPlace(unsigned short i, Edge in);
+		void linearInPlace(unsigned short i, Edge in, std::map<unsigned short, unsigned short>& varMap, bool updateLTMat=true);
+		void linearInPlace2(NodePtr p, unsigned short index, Edge in);
+		void xorInit(std::map<unsigned short, unsigned short>& varMap);
+		void xorLinear(unsigned short index);
+		void xorLinear(unsigned short index, std::map<unsigned short, unsigned short>& varMap);
+		void printLTMap(std::map<unsigned short, unsigned short>& varMap);
+		void printLTMat(std::map<unsigned short, unsigned short>& varMap);
+		Edge linearAndSiftingAux(Edge in, std::map<unsigned short, unsigned short>& varMap);
+		std::vector<Move> undoMoves(short &pos, Edge in, std::map<unsigned short, unsigned short>& varMap, std::vector<Move> moves);
+        int linearAndSiftingBackward(short &optimalPos, Edge in, std::map<unsigned short, unsigned short>& varMap, std::vector<Move> moves);
+        std::vector<Move> linearAndSiftingDown(short &pos, Edge in, std::map<unsigned short, unsigned short>& varMap, std::vector<Move> prevMoves);
+        std::vector<Move> linearAndSiftingUp(short &pos, Edge in, std::map<unsigned short, unsigned short>& varMap, std::vector<Move> prevMoves);
+		std::tuple<Edge, unsigned int, unsigned int> linearSifting(Edge in, std::map<unsigned short, unsigned short>& varMap);
+		Edge qmdd2ltqmdd(Edge in, std::map<unsigned short, unsigned short>& varMap, std::vector<std::vector<Move>> Movetab);
+		Edge qmdd2ltqmdd(Edge in, std::map<unsigned short, unsigned short>& varMap);
+		bool findLTPath(std::vector<Move> movesUP, std::vector<Move> movesDown, std::map<unsigned short, unsigned short>& varMap, short orgOps, short optOps);
+		void printLTPath(std::vector<std::pair<short, short>> LTpath);
 
 		// utility
         /// Traverse DD and return product of edge weights along the way

@@ -225,9 +225,9 @@ namespace dd {
 	}
 
 	void Package::reuseNonterminal(short v, const Edge *edge, NodePtr p, Edge in) {
-		Edge new_e{p, CN::ONE};
+		Edge new_e{p, CN::ONE}; //新建一条指向一层结点的边
         new_e.p->computeMatrixProperties = computeMatrixProperties;
-		assert(v == p->v);
+		assert(v == p->v); //确认正常
         new_e.p->v = v;
 		std::memcpy(new_e.p->e, edge, NEDGE * sizeof(Edge));
 
@@ -240,7 +240,7 @@ namespace dd {
 
         {
             auto olde = new_e;
-            new_e = normalize(new_e, false);
+            new_e = normalize(new_e, false); //对new_e规范化
 
             if (olde.p != new_e.p) {
                 throw std::runtime_error("Normalized edge changed to different node.");
@@ -249,8 +249,8 @@ namespace dd {
 
         assert(is_locally_consistent_dd(new_e));
 
-		if (new_e.w != CN::ONE) {
-			if (new_e.p->normalizationFactor == CN::ONE) {
+		if (new_e.w != CN::ONE) { //规范化后的边权值如果不等于1
+			if (new_e.p->normalizationFactor == CN::ONE) { //但结点权值是1
 				unnormalizedNodes++;
 				assert(!CN::equalsOne(new_e.w));
                 new_e.p->normalizationFactor = new_e.w;
@@ -356,36 +356,38 @@ namespace dd {
         return in;
     }
 
-	void Package::exchangeBaseCase(unsigned short i, Edge in) {
+	void Package::exchangeBaseCase(unsigned short i, Edge in) { //传入变量的索引和dd的根指针
+		std::clog << "ex:" << i << ", ";
+		
 	    exchange_base_cases++;
 		// copy unique table from higher variable and empty it
 		std::array<NodePtr, NBUCKET> table{};
 		for (unsigned short bucket=0; bucket < NBUCKET; ++bucket) {
-			table.at(bucket) = Unique[i][bucket];
-			Unique[i][bucket] = nullptr;
-		}
+			table.at(bucket) = Unique[i][bucket]; //把i变量的唯一表拿出来
+			Unique[i][bucket] = nullptr; //把属于i变量的唯一表清空
+		} //到此，已经把i变量的唯一表拿出来了，并且清空了它
 
-		initComputeTable();
+		initComputeTable(); //初始化计算表
 
 		// iterate over all obtained nodes
-		for (unsigned short bucket=0; bucket < NBUCKET; ++bucket) {
-			NodePtr p = table[bucket];
-			while (p != nullptr) {
+		for (unsigned short bucket=0; bucket < NBUCKET; ++bucket) { //对i变量的每个哈希桶进行遍历
+			NodePtr p = table[bucket]; //取出当前桶里的冲突链
+			while (p != nullptr) { //遍历冲突链的每个结点
 				NodePtr pnext = p->next;
-				assert(p->v == i);
-                assert(i-1 == p->e[0].p->v || isTerminal(p->e[0]));
+				assert(p->v == i); //确认当前指针指向的结点就是属于i变量的
+                assert(i-1 == p->e[0].p->v || isTerminal(p->e[0])); //确认这个结点的四个孩子结点都是属于i-1变量，或是它的孩子是终端结点
                 assert(i-1 == p->e[1].p->v || isTerminal(p->e[1]));
                 assert(i-1 == p->e[2].p->v || isTerminal(p->e[2]));
                 assert(i-1 == p->e[3].p->v || isTerminal(p->e[3]));
-				if (p->ref != 0) {
-                    exchangeBaseCase2(p, i, in);
+				if (p->ref != 0) { //确认这个结点引用计数不是0
+                    exchangeBaseCase2(p, i, in); //传入该结点的指针，变量索引，DD指针
 				}
                 assert(p->v == i);
                 assert(i-1 == p->e[0].p->v || isTerminal(p->e[0]));
                 assert(i-1 == p->e[1].p->v || isTerminal(p->e[1]));
                 assert(i-1 == p->e[2].p->v || isTerminal(p->e[2]));
                 assert(i-1 == p->e[3].p->v || isTerminal(p->e[3]));
-				p = pnext;
+				p = pnext; //轮到冲突链的下一个结点
 			}
 		}
 		if (node_substitutions > 0) {
@@ -394,28 +396,28 @@ namespace dd {
 	}
 
 	void Package::exchangeBaseCase2(NodePtr p, unsigned short index, Edge in) {
-		Edge t[NEDGE][NEDGE]{ };
+		Edge t[NEDGE][NEDGE]{ }; //创建一个矩阵
 		assert(index > 0);
-		assert(index == p->v);
+		assert(index == p->v); //确定传入结点是属于index变量
 
 		// creating matrix T
-		for (int i = 0; i < NEDGE; i++) {
-			for (int j = 0; j < NEDGE; j++) {
-				if (p->e[i].p->v == index - 1) {
+		for (int i = 0; i < NEDGE; i++) { //遍历要处理结点的每条出边
+			for (int j = 0; j < NEDGE; j++) { //遍历它的孩子结点的每一条出边
+				if (p->e[i].p->v == index - 1) { //如果要处理结点的孩子结点是属于它的下一个变量的（如本结点是i变量的，它的孩子结点是i-1变量的）
 				    assert(!isTerminal(p->e[i]));
 
-					t[j][i] = p->e[i].p->e[j];
-					auto c = cn.getTempCachedComplex();
-					CN::mul(c, p->e[i].p->e[j].w, p->e[i].w);
-					if (p->e[i].p->normalizationFactor != CN::ONE) {
+					t[j][i] = p->e[i].p->e[j]; //结点第i条边的孩子的第j条边放入矩阵中
+					auto c = cn.getTempCachedComplex(); //拿到一个临时复数c
+					CN::mul(c, p->e[i].p->e[j].w, p->e[i].w); //复数乘法，结点出边权值*它的孩子的出边权值=c
+					if (p->e[i].p->normalizationFactor != CN::ONE) { //如果改结点的规范因子不是1，就把c乘上规范因子
 						CN::mul(c, c, p->e[i].p->normalizationFactor);
 					}
-					t[j][i].w = cn.lookup(c);
-				} else if (isTerminal(p->e[i])) {
+					t[j][i].w = cn.lookup(c); //给记录的边附上权值c
+				} else if (isTerminal(p->e[i])) { //要处理结点的孩子结点是终端结点
 					// edge pointing to a terminal
-					t[j][i] = p->e[i];
-                    assert(t[j][i].p->normalizationFactor == CN::ONE);
-				} else {
+					t[j][i] = p->e[i]; //矩阵记录的就是结点的出边
+                    assert(t[j][i].p->normalizationFactor == CN::ONE); //这样的话确定这条边的结点规范因子是1
+				} else { //上面两种情况都不是的话，就出问题了，出错处理
 				    debugnode(p);
 				    std::stringstream hex_addr;
 				    hex_addr << "0x" << std::hex << reinterpret_cast<std::uintptr_t>(p);
@@ -425,21 +427,21 @@ namespace dd {
 				        + std::to_string(index) + " --> " + std::to_string(p->e[i].p->v));
 				}
 			}
-		}
+		} //到这里，要处理的结点和它的孩子结点全都处理完，并把结点的孩子结点的出边和联合权值放入矩阵
         assert(is_locally_consistent_dd({p, CN::ZERO}));
 		// creating new nodes and appending corresponding edges
-		Edge newEdges[NEDGE]{ };
-		for (int x = 0; x < NEDGE; ++x) {
-			newEdges[x] = makeNonterminal(static_cast<short>(index - 1), t[x]);
-            incRef(newEdges[x]);
+		Edge newEdges[NEDGE]{ }; //创建要处理结点（P）的一组（4条）出边
+		for (int x = 0; x < NEDGE; ++x) { //搞定p结点的四个孩子
+			newEdges[x] = makeNonterminal(static_cast<short>(index - 1), t[x]); //规范新的index-1结点的四个孩子结点，输入index-1和index-1（4个）结点里面的第x条边
+            incRef(newEdges[x]); //给新结点加引用计数
 			assert(is_locally_consistent_dd(newEdges[x]));
-		}
+		}//到此，变量索引为index-1的四个结点完成规范化
 
-		for (dd::Edge& x : p->e)
+		for (dd::Edge& x : p->e) //把结点原来只想它的孩子的边撤掉
             decRef(x);
 		// reuse p to build new top node
 		assert(p->ref > 0);
-        reuseNonterminal(static_cast<short>(index), newEdges, p, in);
+        reuseNonterminal(static_cast<short>(index), newEdges, p, in); //对p（要处理的结点）重新规范化,传入index，刚刚生成新”第二层“结点，第一层结点指针，DD指针
 		// p might be discarded at this point if nodes were substituted
 	}
 
@@ -464,6 +466,8 @@ namespace dd {
                     return random(in, varMap, mt);
                 }
 			case Window3: return window3(in, varMap);
+			//case linearSift: return std::get<0>(linearSifting(in, varMap));
+			case linearSift: return linearAndSiftingAux(in, varMap);
 		}
 
 		return in;
@@ -474,15 +478,15 @@ namespace dd {
 /// \param varMap stores the variable mapping (cf. dynamicReorder(...))
 /// \return the resulting decision diagram (and the changed variable map and output permutation, which are returned as reference)
     std::tuple<Edge, unsigned int, unsigned int> Package::sifting(Edge in, std::map<unsigned short, unsigned short>& varMap) {
-		const auto n = static_cast<short>(in.p->v + 1);
+		const auto n = static_cast<short>(in.p->v + 1); //变量个数
 
-		std::vector<bool> free(n, true);
-		std::map<unsigned short, unsigned short> invVarMap{};
+		std::vector<bool> free(n, true); //记录数组
+		std::map<unsigned short, unsigned short> invVarMap{}; //DD qubit（变量） 到 电路 qubit（变量） 的映射
 		for (const auto & i : varMap)
-			invVarMap[i.second] = i.first;
+			invVarMap[i.second] = i.first; //DD qubit 到 电路 qubit 的映射
 
 		computeMatrixProperties = Disabled;
-		Edge root{in};
+		Edge root{in}; //声明root边
 
 		//std::clog << "  Start Sifting. n=" << std::setw(2) << n << " -- ";
 //		for (auto &entry: varMap) {
@@ -490,25 +494,25 @@ namespace dd {
 //		}
 		//std::clog << "\n";
 
-		unsigned int total_max = size(in);
+		unsigned int total_max = size(in); //DD的大小
 		unsigned int total_min = total_max;
 
         short pos = -1;
-        for (int i = 0; i < n; ++i) {
+        for (int i = 0; i < n; ++i) { //遍历各个变量
             assert(is_globally_consistent_dd(in));
             unsigned long min = size(in);
             unsigned long max = 0;
 
-            //std::clog << "    " << i << "/" << n << " size=" << min << " | ";
+            std::clog << "    " << i << "/" << n << " size=" << min << " | ";
             for (short j = 0; j < n; j++) {
-                if (free.at(varMap[j]) && active.at(varMap[j]) > max) {
-                    max = active.at(varMap[j]);
-                    pos = j;
+                if (free.at(varMap[j]) && active.at(varMap[j]) > max) { //该变量没有被处理过并该变量存在结点
+                    max = active.at(varMap[j]); //更新max
+                    pos = j; //更新pos
                     assert(max <= std::numeric_limits<int>::max());
                 }
-            }
-            free.at(varMap[pos]) = false;
-            short optimalPos = pos;
+            } //到此找到拥有最大结点数的变量，和该变量的索引（位置）
+            free.at(varMap[pos]) = false; //设置选中的变量为处理状态
+            short optimalPos = pos; 
             short originalPos = pos;
 
             if (pos < n / 2) {  // variable is in lower half -> sifting to bottom first
@@ -526,7 +530,7 @@ namespace dd {
                         min = in_size;
                         optimalPos = pos;
                     }
-                }
+                } //到这里被选中的变量走到了最下面
 
                 // sifting to top
                 while (pos < n - 1) {
@@ -616,7 +620,7 @@ namespace dd {
                 }
             }
             computeMatrixProperties = Enabled;
-            markForMatrixPropertyRecomputation(root);
+            markForMatrixPropertyRecomputation(root); //标记
             recomputeMatrixProperties(root);
 
             // Adjusting varMap if position changed
@@ -626,14 +630,14 @@ namespace dd {
                 //std::clog << "| ##### (min=" << min << "; real size=" << size(in) << ")\n";
             }
 
-            if (optimalPos > originalPos) {
-                auto tempVar = invVarMap[originalPos];
+            if (optimalPos > originalPos) { //向上到最佳位置
+                auto tempVar = invVarMap[originalPos]; //暂存最佳位置对应的电路变量
                 for (int j = originalPos; j < optimalPos; ++j) {
-                    invVarMap[j] = invVarMap[j + 1];
-                    varMap[invVarMap[j]] = j;
+                    invVarMap[j] = invVarMap[j + 1]; //调整 电路变量（qubit）
+                    varMap[invVarMap[j]] = j; //更新DD变量（qubit）
                 }
-                invVarMap[optimalPos] = tempVar;
-                varMap[invVarMap[optimalPos]] = optimalPos;
+                invVarMap[optimalPos] = tempVar; //在合适位置放入最佳位置对应的电路变量
+                varMap[invVarMap[optimalPos]] = optimalPos; //在合适位置放入最佳位置对应的DD变量
             } else if (optimalPos < originalPos) {
                 auto tempVar = invVarMap[originalPos];
                 for (int j = originalPos; j > optimalPos; --j) {
@@ -644,7 +648,7 @@ namespace dd {
                 varMap[invVarMap[optimalPos]] = optimalPos;
             }
         }
-		return {in, total_min, total_max};
+		return {in, total_min, total_max}; //返回DD指针和这次sifting过程中最大和最小的DD size
 	}
 
 	/// First counts the number of nodes in the given DD.
