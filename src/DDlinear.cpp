@@ -65,7 +65,7 @@ namespace dd {
 
 
 	void Package::linearInPlace(unsigned short i, Edge in, std::map<unsigned short, unsigned short>& varMap, bool updateLTMat) { //传入变量的索引和dd的根指针,和变量映射
-		std::clog << "lt:" << i << ", ";
+		// std::clog << "lt:" << i << ", ";
 
 		// copy unique table from higher variable and empty it
 		std::array<NodePtr, NBUCKET> table{};

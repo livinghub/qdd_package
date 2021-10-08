@@ -348,6 +348,9 @@ namespace dd {
 		Edge qmdd2ltqmdd(Edge in, std::map<unsigned short, unsigned short>& varMap);
 		bool findLTPath(std::vector<Move> movesUP, std::vector<Move> movesDown, std::map<unsigned short, unsigned short>& varMap, short orgOps, short optOps);
 		void printLTPath(std::vector<std::pair<short, short>> LTpath);
+		std::vector<std::vector<Move>> getMovetab();
+		Edge ltqmdd2qmdd(Edge in, std::map<unsigned short, unsigned short>& varMap, std::vector<std::vector<Move>> Movetab);
+		void printMovetab(std::vector<std::vector<Move>> Movetab);
 
 		// utility
         /// Traverse DD and return product of edge weights along the way
