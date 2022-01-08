@@ -102,7 +102,7 @@ namespace dd {
 	
     }
 
-	void Package::printOpSeq(std::vector<Move> opSeq) {
+	void Package::printOpSeq(std::list<Move> opSeq) {
 		for( auto &i : opSeq) {
 			if(i.optype == SWAP_MOVE)
 				std::cout << "ex:" << i.index << ", ";
