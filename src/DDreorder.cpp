@@ -356,7 +356,7 @@ namespace dd {
         return in;
     }
 
-	void Package::exchangeBaseCase(unsigned short i, Edge in) { //传入变量的索引和dd的根指针
+	void Package::exchangeBaseCase(unsigned short i, Edge in) { //传入电路变量 和 dd的根指针
 		// std::clog << "ex:" << i << ", ";
 		
 	    exchange_base_cases++;
@@ -403,7 +403,7 @@ namespace dd {
 		// creating matrix T
 		for (int i = 0; i < NEDGE; i++) { //遍历要处理结点的每条出边
 			for (int j = 0; j < NEDGE; j++) { //遍历它的孩子结点的每一条出边
-				if (p->e[i].p->v == index - 1) { //如果要处理结点的孩子结点是属于它的下一个变量的（如本结点是i变量的，它的孩子结点是i-1变量的）
+				if (p->e[i].p->v == index - 1) { //这里是图变量，如果要处理结点的孩子结点是属于它的下一个变量的（如本结点是i变量的，它的孩子结点是i-1变量的）
 				    assert(!isTerminal(p->e[i]));
 
 					t[j][i] = p->e[i].p->e[j]; //结点第i条边的孩子的第j条边放入矩阵中
@@ -467,7 +467,7 @@ namespace dd {
                 }
 			case Window3: return window3(in, varMap);
 			//case linearSift: return std::get<0>(linearSifting(in, varMap));
-			case linearSift: return linearAndSiftingAux(in, varMap);
+			case linearSift: return linearAndSiftingAux2(in, varMap, 1);
 		}
 
 		return in;
@@ -497,7 +497,7 @@ namespace dd {
 		unsigned int total_max = size(in); //DD的大小
 		unsigned int total_min = total_max;
 
-        short pos = -1;
+        short pos = -1; //cruciet variable
         for (int i = 0; i < n; ++i) { //遍历各个变量
             assert(is_globally_consistent_dd(in));
             unsigned long min = size(in);
