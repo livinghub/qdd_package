@@ -991,10 +991,12 @@ namespace dd {
         //
         for(std::vector<Move>::reverse_iterator it=moves.rbegin(); it!=moves.rend(); ) {
             pos = it->index;
-            // if(it->optype == -1) break;
+            if(it->optype == -1) break;
             //std::clog << "ex" << it->index <<", ";
+            
             invmove.optype = SWAP_MOVE;
             exchangeBaseCase(it->index, in, Map);
+            
             
             auto curSize = size(in);
             // std::clog<<curSize<<' ';
@@ -1173,16 +1175,7 @@ namespace dd {
             // auto scheck = size(in);
             // std::clog << "    " << i << "/" << n << " size=" << scheck << " | ";
 		}
-        // one time map update
-        // Move curOp{};
-        // curOp.index = -1;
-        // curOp.optype = UPDATE_MAP;
-        // curOp.ddsize = -1;
-        // opSequence.push_back(curOp);
-        // for ( auto & i : invVarMap)
-		//     varMap[i.second] = i.first; //DD qubit 到 电路 qubit 的映射
-        // for ( auto & i : invVarMap)
-        //     std::cout<<i.first<<':'<<i.second<<std::endl;
+        
 		return in; //返回DD指针	
 	}
 }
