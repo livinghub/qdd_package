@@ -128,7 +128,7 @@ namespace dd {
 		// std::clog << "ex:" << i << ", ";
 
 		// Real-time location map updates
-		auto tmp = Map[i];
+		unsigned short tmp = Map[i];
 		Map[i] = Map[i-1];
 		Map[i-1] = tmp;
 		if(major) {

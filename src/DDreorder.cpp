@@ -466,8 +466,8 @@ namespace dd {
                     return random(in, varMap, mt);
                 }
 			case Window3: return window3(in, varMap);
-			//case linearSift: return std::get<0>(linearSifting(in, varMap));
-			case linearSift: return linearAndSiftingAux2(in, varMap, 1);
+			// case linearSift: return std::get<0>(linearSifting(in, varMap));
+			case linearSift: return linearAndSiftingAux(in, varMap, 1);
 		}
 
 		return in;

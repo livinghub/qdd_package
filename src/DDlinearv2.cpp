@@ -57,16 +57,19 @@ namespace dd {
             //move.ddVar = varMap[pos]; //把已经处理的DD变量记录下来
             short optimalPos = pos; 
             short originalPos = pos;
+
+            //记录初始位置
+            Move curState;
+            curState.ddsize = min;
+            curState.index = pos;
+            curState.optype = -1;
+            std::list<Move> curMoveV;
+            curMoveV.push_back(curState);
             
             if(pos==n-1) { //选中的变量索引就是顶部
                 //
                 // std::clog<<"全部向下; "<<std::endl;
-                Move curState;
-                curState.ddsize = min;
-                curState.index = pos;
-                curState.optype = -1;
-                std::list<Move> curMoveV;
-                curMoveV.push_back(curState);
+                
                 // std::clog<<"下: ";
                 moveDown = linearAndSiftingDown(pos, in, invVarMap, curMoveV);
                 // std::clog<<"好: ";
@@ -77,12 +80,6 @@ namespace dd {
             } else if(pos==0) {
                 //
                 // std::clog<<"全部向上; "<<std::endl;
-                Move curState;
-                curState.ddsize = min;
-                curState.index = pos;
-                curState.optype = -1;
-                std::list<Move> curMoveV;
-                curMoveV.push_back(curState);
                 // std::clog<<"上: ";
                 moveUp = linearAndSiftingUp(++pos, in, invVarMap, curMoveV);
                 // std::clog<<"好: ";
@@ -92,7 +89,7 @@ namespace dd {
                 //
                 // std::clog<<"先下后上; "<<std::endl;
                 // std::clog<<"下: ";
-                moveDown = linearAndSiftingDown(pos, in, invVarMap, MNULL);
+                moveDown = linearAndSiftingDown(pos, in, invVarMap, curMoveV);
                 if(moveDown.back().index != pos+1) {
                     throw std::logic_error("检查aux-lsDown");
                 }
@@ -110,7 +107,7 @@ namespace dd {
                 //
                 // std::clog<<"先上后下; "<<std::endl;
                 // std::clog<<"上: ";
-                moveUp = linearAndSiftingUp(++pos, in, invVarMap, MNULL);
+                moveUp = linearAndSiftingUp(++pos, in, invVarMap, curMoveV);
                 // if(moveUp.back().index != pos) {
                 //     throw std::logic_error("检查aux-lsUp");
                 // }
@@ -161,16 +158,6 @@ namespace dd {
             // auto scheck = size(in);
             // std::clog << "    " << i << "/" << n << " size=" << scheck << " | ";
 		}
-        // one time map update
-        // Move curOp{};
-        // curOp.index = -1;
-        // curOp.optype = UPDATE_MAP;
-        // curOp.ddsize = -1;
-        // opSequence.push_back(curOp);
-        // for ( auto & i : invVarMap)
-		//     varMap[i.second] = i.first; //DD qubit 到 电路 qubit 的映射
-        // for ( auto & i : invVarMap)
-        //     std::cout<<i.first<<':'<<i.second<<std::endl;
 		return in; //返回DD指针	
 	}
 
@@ -232,7 +219,7 @@ namespace dd {
 
             //std::clog << "↓" << ex_size << " ";
             assert(is_locally_consistent_dd(in));
-            ++pos; //变量位置下移一位 
+            ++pos; //变量位置上移一位 
         }
 
         return moves;
@@ -312,20 +299,17 @@ namespace dd {
             throw std::logic_error("moves为空.");
         }
 
-        int bSize=moves.front().ddsize;
-        // for(auto i : moves) {
-        //     if(i.ddsize<size) {
-        //         size = i.ddsize;
-        //     }
-        // }
+        unsigned int bSize = UINT32_MAX;
+        
         std::list<Move>::reverse_iterator bestIt;
         for(std::list<Move>::reverse_iterator it=moves.rbegin(); it!=moves.rend(); ++it) {
-            if(it->ddsize<=bSize) {
+            // std::clog << "size-ind-op " << it->ddsize<<'-'<<it->index<<'-'<<it->optype<<"; ";
+            if(it->ddsize<bSize) {
                 bSize = it->ddsize;
                 bestIt = it;
             }
         }  
-        std::clog << "best size:" << bSize<<' ' << bestIt->index<<';';
+        // std::clog << "best size:" << bSize<<' ' << bestIt->index<<';';
         // for( auto &i : moves) {
         //     std::clog << "size-ind-op：" << i.ddsize<<'-'<<i.index<<'-'<<i.optype<<' ';
         // }
@@ -368,10 +352,13 @@ namespace dd {
 
         Move invmove;
         std::list<Move> invmoves;
+        unsigned int curSize = 0;
         //
-        for(std::list<Move>::reverse_iterator it=moves.rbegin(); it!=moves.rend(); ) {
-            pos = it->index;
-            // if(it->optype == -1) break;
+        for(std::list<Move>::reverse_iterator it=moves.rbegin(); it!=moves.rend(); ) {            
+            if(it->optype == -1) {
+                if(curSize != it->ddsize) throw std::logic_error("undo() 出错");
+                break;
+            }
             if(it->optype == SWAP_MOVE) {
                 //std::clog << "ex" << it->index <<", ";
                 invmove.optype = SWAP_MOVE;
@@ -387,7 +374,8 @@ namespace dd {
                 exchangeBaseCase(it->index, in, Map);
                 linearInPlace(it->index, in, Map);
             }
-            auto curSize = size(in);
+            pos = it->index;
+            curSize = size(in);
             invmove.index = it->index;
             invmove.ddsize = curSize;
             ++it;
@@ -570,18 +558,20 @@ namespace dd {
 
         Move invmove;
         std::list<Move> invmoves(moves);
+        unsigned int curSize = 0;
         
         //
         for(std::list<Move>::reverse_iterator it=moves.rbegin(); it!=moves.rend(); ) {
-            pos = it->index;
-            if(it->optype == -1) break;
+            if(it->optype == -1) {
+                break;
+            }
             //std::clog << "ex" << it->index <<", ";
             
             invmove.optype = SWAP_MOVE;
             exchangeBaseCase(it->index, in, Map);
             
-            
-            auto curSize = size(in);
+            pos = it->index;
+            curSize = size(in);
             // std::clog<<curSize<<' ';
             invmove.index = it->index;
             invmove.ddsize = curSize;
@@ -640,15 +630,18 @@ namespace dd {
             short optimalPos = pos; 
             short originalPos = pos;
             
+            //记录最开始状态
+            Move curState;
+            curState.ddsize = min;
+            curState.index = pos;
+            curState.optype = -1;
+            std::list<Move> curMoveV;
+            curMoveV.push_back(curState);
+            
             if(pos==n-1) { //选中的变量索引就是顶部
                 //
                 // std::clog<<"全部向下; "<<std::endl;
-                Move curState;
-                curState.ddsize = min;
-                curState.index = pos;
-                curState.optype = -1;
-                std::list<Move> curMoveV;
-                curMoveV.push_back(curState);
+                
                 // std::clog<<"下: ";
                 moveDown = linearAndSiftingDown(pos, in, invVarMap, curMoveV);
                 // std::clog<<"好: ";
@@ -659,12 +652,6 @@ namespace dd {
             } else if(pos==0) {
                 //
                 // std::clog<<"全部向上; "<<std::endl;
-                Move curState;
-                curState.ddsize = min;
-                curState.index = pos;
-                curState.optype = -1;
-                std::list<Move> curMoveV;
-                curMoveV.push_back(curState);
                 // std::clog<<"上: ";
                 moveUp = linearAndSiftingUp(++pos, in, invVarMap, curMoveV);
                 // std::clog<<"好: ";
@@ -674,12 +661,6 @@ namespace dd {
                 //
                 // std::clog<<"先下后上; "<<std::endl;
                 // std::clog<<"下: ";
-                Move curState;
-                curState.ddsize = min;
-                curState.index = pos;
-                curState.optype = -1;
-                std::list<Move> curMoveV;
-                curMoveV.push_back(curState);
                 moveDown = linearAndSiftingDown(pos, in, invVarMap, curMoveV);
                 if(moveDown.back().index != pos+1) {
                     throw std::logic_error("检查aux-lsDown");
@@ -698,12 +679,6 @@ namespace dd {
                 //
                 // std::clog<<"先上后下; "<<std::endl;
                 // std::clog<<"上: ";
-                 Move curState;
-                curState.ddsize = min;
-                curState.index = pos;
-                curState.optype = -1;
-                std::list<Move> curMoveV;
-                curMoveV.push_back(curState);
                 moveUp = linearAndSiftingUp(++pos, in, invVarMap, curMoveV);
                 // if(moveUp.back().index != pos) {
                 //     throw std::logic_error("检查aux-lsUp");
