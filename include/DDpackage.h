@@ -328,7 +328,6 @@ namespace dd {
         bool xorMat[MAXN][MAXN]{ };						//XORs two var of the linear transform matrix.
 		// bool txMat[MAXN][MAXN] {}; //行列是var
 		unsigned int valid_LT_Num = 0;  //有效LT次数, 仅在linear sifting v1中有效
-		std::vector<std::pair<short, short>> LTpath; //dd val index
 		std::list<Move> opSequence{}; //linear sifting operation sequence
 
 		void linearInPlace(unsigned short i, Edge in);
@@ -354,9 +353,7 @@ namespace dd {
         std::list<Move> linearAndSiftingDown(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
         std::list<Move> linearAndSiftingUp(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
 		std::tuple<Edge, unsigned int, unsigned int> linearSifting(Edge in, std::map<unsigned short, unsigned short>& varMap);
-		void qmdd2ltqmdd(Edge in, std::map<unsigned short, unsigned short>& varMap, std::list<Move> opSeq, bool Mat[MAXN][MAXN]);
-		Edge qmdd2ltqmdd(Edge in, std::map<unsigned short, unsigned short>& varMap);
-		void printLTPath(std::vector<std::pair<short, short>> LTpath);
+		void qmdd2ltqmdd(Edge in, std::map<unsigned short, unsigned short>& varMap, std::list<Move> &opSeq, bool Mat[MAXN][MAXN]);
 
 		// utility
         /// Traverse DD and return product of edge weights along the way

@@ -189,7 +189,7 @@ namespace dd {
 			linear_in_place++;
 			xorLinear(i, Map); //更新线性变换矩阵
 			// Record operation
-			Move curOp{};
+			Move curOp;
 			curOp.index = i;
 			curOp.optype = LINEAR_TRANSFORM_MOVE;
 			curOp.ddsize = -1;
