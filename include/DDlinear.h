@@ -26,6 +26,15 @@ namespace dd {
 		}  
 	}Move;
 
+	typedef struct xorNode {
+		unsigned short tvar; //上层 dd变量 
+		unsigned short cvar; //下层 dd变量
+		xorNode(unsigned short hight_DDqubit, unsigned short low_DDqubit) {
+			this->tvar = hight_DDqubit;
+			this->cvar = low_DDqubit;
+		}
+	}xorNode;
+
     
 
 

@@ -328,7 +328,10 @@ namespace dd {
         bool xorMat[MAXN][MAXN]{ };						//XORs two var of the linear transform matrix.
 		// bool txMat[MAXN][MAXN] {}; //行列是var
 		unsigned int valid_LT_Num = 0;  //有效LT次数, 仅在linear sifting v1中有效
-		std::list<Move> opSequence{}; //linear sifting operation sequence
+		// std::list<Move> opSequence{}; //linear sifting operation sequence
+		std::list<xorNode> xorSeq;
+		std::vector<short> opSeq; //正数为ex，负数为lt
+		unsigned int dynThreshold = 500; //动态最小化触发值
 
 		void linearInPlace(unsigned short i, Edge in);
 		void linearInPlace(unsigned short i, Edge in, std::map<unsigned short, unsigned short>& Map, bool major=true);
@@ -341,8 +344,10 @@ namespace dd {
 		void printLTMap(std::map<unsigned short, unsigned short> varMap);
 		void printLTMap(std::map<unsigned short, unsigned short> varMap, bool Mat[MAXN][MAXN]);
 		void printLTMat(std::map<unsigned short, unsigned short>& varMap);
+		void printLTMat(std::map<unsigned short, unsigned short>& varMap, bool Mat[MAXN][MAXN]);
 		void printIndToVar(std::map<unsigned short, unsigned short> varMap);
 		void printOpSeq(std::list<Move> opSeq);
+		void printXorSeq(std::list<xorNode> &XorSeq);
 		bool matIsEqual(bool mat[MAXN][MAXN]);
 		Edge linearAndSiftingAux(Edge in, std::map<unsigned short, unsigned short>& varMap);
 		Edge linearAndSiftingAux(Edge in, std::map<unsigned short, unsigned short>& varMap, bool fg);
@@ -352,8 +357,13 @@ namespace dd {
         int linearAndSiftingBackward(short &optimalPos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &moves);
         std::list<Move> linearAndSiftingDown(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
         std::list<Move> linearAndSiftingUp(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
-		std::tuple<Edge, unsigned int, unsigned int> linearSifting(Edge in, std::map<unsigned short, unsigned short>& varMap);
-		void qmdd2ltqmdd(Edge in, std::map<unsigned short, unsigned short>& varMap, std::list<Move> &opSeq, bool Mat[MAXN][MAXN]);
+		std::tuple<Edge, unsigned int, unsigned int> linearSiftingv1(Edge in, std::map<unsigned short, unsigned short>& varMap);
+		void qmdd2ltqmdd(Edge in, std::map<unsigned short, unsigned short>& varMap, bool Mat[MAXN][MAXN]);
+		void ltqmdd2qmdd(Edge in, std::map<unsigned short, unsigned short>& varMap, bool Mat[MAXN][MAXN]);
+		void map2ltmap(std::list<xorNode> &xorSeq, std::map<unsigned short, unsigned short> varMap);
+		Edge dynTraceBack(Edge in, std::map<unsigned short, unsigned short>& varMap);
+		Edge depthCopyDD(const Edge &in);
+		Edge linearSifting(Edge in, std::map<unsigned short, unsigned short>& varMap);
 
 		// utility
         /// Traverse DD and return product of edge weights along the way

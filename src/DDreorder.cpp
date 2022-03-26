@@ -249,8 +249,8 @@ namespace dd {
 
         assert(is_locally_consistent_dd(new_e));
 
-		if (new_e.w != CN::ONE) { //规范化后的边权值如果不等于1
-			if (new_e.p->normalizationFactor == CN::ONE) { //但结点权值是1
+		if (new_e.w != CN::ONE) {
+			if (new_e.p->normalizationFactor == CN::ONE) {
 				unnormalizedNodes++;
 				assert(!CN::equalsOne(new_e.w));
                 new_e.p->normalizationFactor = new_e.w;
@@ -432,7 +432,7 @@ namespace dd {
 		// creating new nodes and appending corresponding edges
 		Edge newEdges[NEDGE]{ }; //创建要处理结点（P）的一组（4条）出边
 		for (int x = 0; x < NEDGE; ++x) { //搞定p结点的四个孩子
-			newEdges[x] = makeNonterminal(static_cast<short>(index - 1), t[x]); //规范新的index-1结点的四个孩子结点，输入index-1和index-1（4个）结点里面的第x条边
+			newEdges[x] = makeNonterminal(static_cast<short>(index - 1), t[x]); //新建结点，输入index-1和index-1（4个）结点里面的第x条边
             incRef(newEdges[x]); //给新结点加引用计数
 			assert(is_locally_consistent_dd(newEdges[x]));
 		}//到此，变量索引为index-1的四个结点完成规范化
@@ -441,7 +441,7 @@ namespace dd {
             decRef(x);
 		// reuse p to build new top node
 		assert(p->ref > 0);
-        reuseNonterminal(static_cast<short>(index), newEdges, p, in); //对p（要处理的结点）重新规范化,传入index，刚刚生成新”第二层“结点，第一层结点指针，DD指针
+        reuseNonterminal(static_cast<short>(index), newEdges, p, in); //重用结点
 		// p might be discarded at this point if nodes were substituted
 	}
 
@@ -466,8 +466,8 @@ namespace dd {
                     return random(in, varMap, mt);
                 }
 			case Window3: return window3(in, varMap);
-			// case linearSift: return std::get<0>(linearSifting(in, varMap));
-			case linearSift: return linearAndSiftingAux(in, varMap, 1);
+			case linearSift: return linearSifting(in, varMap);
+			// case linearSift: return linearAndSiftingAux(in, varMap, 1);
 		}
 
 		return in;
@@ -497,7 +497,7 @@ namespace dd {
 		unsigned int total_max = size(in); //DD的大小
 		unsigned int total_min = total_max;
 
-        short pos = -1; //cruciet variable
+        short pos = -1; //circuit variable (index)
         for (int i = 0; i < n; ++i) { //遍历各个变量
             assert(is_globally_consistent_dd(in));
             unsigned long min = size(in);
@@ -608,7 +608,7 @@ namespace dd {
 
                         // there are nodes which need to renormalized
             if (unnormalizedNodes > 0) {
-                //std::clog << "{" << unnormalizedNodes << "} ";
+                std::clog << "{" << unnormalizedNodes << "} ";
                 auto oldroot = root;
                 root = renormalize(root);
                 decRef(oldroot);
@@ -630,6 +630,7 @@ namespace dd {
                 //std::clog << "| ##### (min=" << min << "; real size=" << size(in) << ")\n";
             }
 
+			//交换DD的层，即map的key
             if (optimalPos > originalPos) { //向上到最佳位置
                 auto tempVar = invVarMap[originalPos]; //暂存最佳位置对应的电路变量
                 for (int j = originalPos; j < optimalPos; ++j) {
@@ -647,6 +648,22 @@ namespace dd {
                 invVarMap[optimalPos] = tempVar;
                 varMap[invVarMap[optimalPos]] = optimalPos;
             }
+
+			//我的实现, 这是错误的，是要交换层，即map的key，这里做的是value
+			// if(optimalPos > originalPos) {
+			// 	for(unsigned short j=originalPos; j<optimalPos; ++j) {
+			// 		unsigned short tmp = varMap[j+1];
+			// 		varMap[j+1] = varMap[j];
+			// 		varMap[j] = tmp;
+			// 	}
+			// } else if(optimalPos < originalPos) {
+			// 	for(unsigned short j=originalPos; j>optimalPos; --j) {
+			// 		unsigned short tmp = varMap[j-1];
+			// 		varMap[j-1] = varMap[j];
+			// 		varMap[j] = tmp;
+			// 	}
+			// }
+
         }
 		return {in, total_min, total_max}; //返回DD指针和这次sifting过程中最大和最小的DD size
 	}

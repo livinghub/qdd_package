@@ -23,21 +23,24 @@ namespace dd {
         std::list<Move> moveDown;
 
 		std::vector<bool> free(n, true); //记录变量是否已经被处理
-		std::map<unsigned short, unsigned short> invVarMap{}; //index->var; DD qubit（变量） 到 电路 qubit（变量） 的映射
-		for ( auto & i : varMap)
-			invVarMap[i.second] = i.first; //DD qubit 到 电路 qubit 的映射
+
+		// std::map<unsigned short, unsigned short> invVarMap{}; //level->index; DD qubit（变量） 到 电路 qubit（变量） 的映射
+		// for ( auto & i : varMap)
+		// 	invVarMap[i.second] = i.first; //DD qubit 到 电路 qubit 的映射
 
 		computeMatrixProperties = Disabled;
 		Edge root{in}; //声明root边
 
 
-        short pos = -1; //选中变量的index
+        short pos = -1; //选中变量的index, 电路qubit
 
-		/**/
-		
-		// xorInit(varMap);
-
-		/**/
+		/**
+        static bool matInit = true;
+		if(matInit) {
+            xorInit(varMap);
+            matInit = false;
+        }
+		**/
 
 
 		for (int i = 0; i < n; ++i) { //遍历各个变量
@@ -72,9 +75,9 @@ namespace dd {
                 // std::clog<<"全部向下; "<<std::endl;
                 
                 // std::clog<<"下: ";
-                moveDown = linearAndSiftingDown(pos, in, invVarMap, curMoveV);
+                moveDown = linearAndSiftingDown(pos, in, varMap, curMoveV);
                 // std::clog<<"好: ";
-                linearAndSiftingBackward(optimalPos, in, invVarMap, moveDown);
+                linearAndSiftingBackward(optimalPos, in, varMap, moveDown);
                 // --optimalPos;
                 // std::clog<<"    原来位置和最佳位置："<<originalPos<<"and"<<optimalPos<<"    ";
                 
@@ -82,29 +85,29 @@ namespace dd {
                 //
                 // std::clog<<"全部向上; "<<std::endl;
                 // std::clog<<"上: ";
-                moveUp = linearAndSiftingUp(pos, in, invVarMap, curMoveV);
+                moveUp = linearAndSiftingUp(pos, in, varMap, curMoveV);
                 // std::clog<<"好: ";
-                linearAndSiftingBackward(optimalPos, in, invVarMap, moveUp);
+                linearAndSiftingBackward(optimalPos, in, varMap, moveUp);
                 // std::clog<<"    原来位置和最佳位置："<<originalPos<<"and"<<optimalPos<<"    ";
             } else if(pos < n/2) { // variable is in lower half -> sifting to bottom first
                 //
                 // std::clog<<"先下后上; "<<std::endl;
-                std::clog<<pos<<' ';
-                std::clog<<"下: ";
-                moveDown = linearAndSiftingDown(pos, in, invVarMap, curMoveV);
+                // std::clog<<pos<<' ';
+                // std::clog<<"下: ";
+                moveDown = linearAndSiftingDown(pos, in, varMap, curMoveV);
                 if(moveDown.back().index != pos+1) {
                     throw std::logic_error("检查aux-lsDown");
                 }
-                std::clog<<pos<<' ';
-                std::clog<<"还: ";
-                moveUp = undoMoves(pos, in, invVarMap, moveDown);
+                // std::clog<<pos<<' ';
+                // std::clog<<"还: ";
+                moveUp = undoMoves(pos, in, varMap, moveDown);
                 if(min != size(in)) throw std::logic_error("undo 错误 ");
-                std::clog<<pos<<' ';
-                std::clog<<"上: ";
-                moveUp = linearAndSiftingUp(pos, in, invVarMap, moveUp);
-                std::clog<<pos<<' ';
-                std::clog<<"好: ";
-                linearAndSiftingBackward(optimalPos, in, invVarMap, moveUp);
+                // std::clog<<pos<<' ';
+                // std::clog<<"上: ";
+                moveUp = linearAndSiftingUp(pos, in, varMap, moveUp);
+                // std::clog<<pos<<' ';
+                // std::clog<<"好: ";
+                linearAndSiftingBackward(optimalPos, in, varMap, moveUp);
                 //--optimalPos;
                 // std::clog<<"    原来位置和最佳位置："<<originalPos<<"and"<<optimalPos<<"    ";
                
@@ -114,42 +117,43 @@ namespace dd {
                 
                 // std::clog<<pos<<' ';
                 // std::clog<<"上: ";
-                moveUp = linearAndSiftingUp(pos, in, invVarMap, curMoveV);
+                moveUp = linearAndSiftingUp(pos, in, varMap, curMoveV);
                 // if(moveUp.back().index != pos) {
                 //     throw std::logic_error("检查aux-lsUp");
                 // }
                 
                 // std::clog<<pos<<' ';
                 // std::clog<<"还: ";
-                moveDown = undoMoves(pos, in, invVarMap, moveUp);
+                moveDown = undoMoves(pos, in, varMap, moveUp);
                 if(min != size(in)) throw std::logic_error("undo 错误 ");
                 // --pos; //补偿
                 
                 // std::clog<<pos<<' ';
                 // std::clog<<"下: ";
-                moveDown = linearAndSiftingDown(pos, in, invVarMap, moveDown);
+                moveDown = linearAndSiftingDown(pos, in, varMap, moveDown);
                 
                 // std::clog<<pos<<' ';
                 // std::clog<<"好: ";
-                linearAndSiftingBackward(optimalPos, in, invVarMap, moveDown);
+                linearAndSiftingBackward(optimalPos, in, varMap, moveDown);
                 // --optimalPos;
                 // std::clog<<"    原来位置和最佳位置："<<originalPos<<"and"<<optimalPos<<"    ";
               
             }
             
             if(optimalPos == originalPos) {
+                // std::clog<<"originalPos-size"<<originalPos<<'-'<<min<<';';
                 if(min != size(in)) throw std::logic_error("处理后的初始位置的size不等于原初始size");
             } else if(min < size(in)) {
                 std::clog << size(in) << ' ';
                 throw std::logic_error("筛选后结果更差? ");
             }
 
-
+            // opSeq.push_back(0);
 			initComputeTable();
 
 			// there are nodes which need to renormalized
             if (unnormalizedNodes > 0) {
-                //std::clog << "{" << unnormalizedNodes << "} ";
+                // std::clog << "{" << unnormalizedNodes << "} ";
                 auto oldroot = root;
                 root = renormalize(root);
                 decRef(oldroot);
@@ -163,9 +167,6 @@ namespace dd {
             computeMatrixProperties = Enabled;
             markForMatrixPropertyRecomputation(root); //标记
             recomputeMatrixProperties(root);
-
-			for ( auto & i : invVarMap)
-			    varMap[i.second] = i.first; //DD qubit 到 电路 qubit 的映射
             
             //for debug
             // auto scheck = size(in);
@@ -198,7 +199,6 @@ namespace dd {
         while (pos+1 < n ) {
 			// std::clog << "向上尝试";
             exchangeBaseCase(pos+1, in, Map); //先对pos，pos-1执行swap
-            auto ex_in = in;
             auto ex_size = size(in);
 			linearInPlace(pos+1, in, Map); //再pos，pos-1执行L.T.
 			auto lt_size = size(in);
@@ -225,6 +225,10 @@ namespace dd {
 			} else { //lt效果更好
                 //debug
                 // std::clog<<"lt better"<<std::endl;
+
+                // // Record xor operation (for dd qubit)
+                // xorNode curXOR(Map[pos+1], Map[pos]);
+                // xorSeq.push_back(curXOR);
 
                 move.ddsize = lt_size;
                 move.optype = LINEAR_TRANSFORM_MOVE;
@@ -262,7 +266,6 @@ namespace dd {
         while (pos > 0) {
 			//std::clog << "向下尝试";
             exchangeBaseCase(pos, in, Map); //先对pos，pos-1执行swap
-            // auto ex_in = in;
             auto ex_size = size(in);
 			linearInPlace(pos, in, Map); //再pos，pos-1执行L.T.
 			auto lt_size = size(in);
@@ -286,6 +289,10 @@ namespace dd {
                 //debug
                 // std::clog<<"swap better"<<std::endl;
 			} else { //lt效果更好
+                // // Record xor operation (for dd qubit)
+                // xorNode curXOR(Map[pos], Map[pos-1]);
+                // xorSeq.push_back(curXOR);
+
                 move.ddsize = lt_size;
                 move.optype = LINEAR_TRANSFORM_MOVE;
 
@@ -322,9 +329,10 @@ namespace dd {
             if(it->ddsize<bSize) {
                 bSize = it->ddsize;
                 bestIt = it;
+                optimalPos = it->pos;
             }
         }  
-        // std::clog << "best size:" << bSize<<' ' << bestIt->index<<';';
+        // std::clog << "best size-index-pos:"<<bSize<<'-'<<bestIt->index<<'-'<<bestIt->pos<<';';
         // for( auto &i : moves) {
         //     std::clog << "size-ind-op：" << i.ddsize<<'-'<<i.index<<'-'<<i.optype<<' ';
         // }
@@ -349,6 +357,7 @@ namespace dd {
             ++it;
             if(it->ddsize != size(in)) {
                 std::clog<<size(in)<<' ';
+                std::cout<<"还原后的size和记录上的size不一致"<<std::endl;
                 throw std::logic_error("还原后的size和记录上的size不一致 ");
             } 
         }
@@ -397,6 +406,7 @@ namespace dd {
             ++it;
             if(it!=moves.rend() && curSize != it->ddsize) {
                 std::clog<<"recS-curS: "<<it->ddsize<<'-'<<curSize<<' ';
+                std::cout<<"undo后的size和记录上的size不一致"<<std::endl;
                 throw std::logic_error("undo后的size和记录上的size不一致 ");
             }
             
@@ -417,59 +427,104 @@ namespace dd {
     }
 
 
-    //qmdd ---opSequence----> ltqmdd
+    //qmdd ---opSeq----> ltqmdd
     void Package::qmdd2ltqmdd(
         Edge in, 
         std::map<unsigned short, unsigned short>& varMap, //circuit var -> DD variable
-        std::list<Move> &opSeq,
         bool Mat[MAXN][MAXN]
     ) {
-        std::map<unsigned short, unsigned short> invVarMap{}; //index->var; DD variable -> circuit var
-		for ( auto & i : varMap)
-			invVarMap[i.second] = i.first;
-        computeMatrixProperties = Disabled;
-		Edge root{in}; //声明root边
+        // computeMatrixProperties = Disabled;
+		// Edge root{in}; //声明root边
+
+
+        // static bool matInit = true;
+        // if(matInit) {
+        //     xorInit(varMap, Mat);
+        // }
+        xorInit(varMap, Mat);
 
         if(!opSeq.empty()) {
             
-            std::clog << std::endl << "opSequence不为空，执行转换" << std::endl;
+            // std::clog << std::endl << "opSequence不为空，执行转换" << std::endl;
             
-            for(const auto &i : opSeq) {
-                if(i.optype == SWAP_MOVE) {
-                    exchangeBaseCase(i.index, in, invVarMap, false);
-                } else if(i.optype == LINEAR_TRANSFORM_MOVE) {                   
-                    linearInPlace(i.index, in, invVarMap, false); //不更新lt矩阵
-                    xorLinear(i.index, invVarMap, Mat); 
-                } else { //
-                    initComputeTable();
-                    // there are nodes which need to renormalized
-                    if (unnormalizedNodes > 0) {
-                        //std::clog << "{" << unnormalizedNodes << "} ";
-                        auto oldroot = root;
-                        root = renormalize(root);
-                        decRef(oldroot);
-                        incRef(root);
-                        in.p = root.p;
-                        in.w = root.w;
-                        if (unnormalizedNodes > 0) {
-                            throw std::runtime_error("Renormalization failed. " + std::to_string(unnormalizedNodes) + " unnormalized nodes remaining.");
-                        }
-                    }
-                    computeMatrixProperties = Enabled;
-                    markForMatrixPropertyRecomputation(root); //标记
-                    recomputeMatrixProperties(root);
+            for(const short &i : opSeq) {
+                // std::clog<<i<<' ';
+                if(i>0) {
+                    exchangeBaseCase(i, in, varMap, false);
+                } else {                   
+                    linearInPlace(-i, in, varMap, false); //不更新lt矩阵
+                    xorLinear(-i, varMap, Mat); 
                 }
-            }
-            
-            for ( auto & i : invVarMap)
-			    varMap[i.second] = i.first; //DD qubit 到 电路 qubit 的映射
-            return ;
+            }          
         } else {
-            std::clog << std::endl << "opSequence为空" << std::endl;
-            return ;
+            // std::clog << std::endl << "opSequence为空" << std::endl;
         }
+
+        
         
     }
+
+    // ltqmdd ----(opSequence)---> qmdd
+    //
+    void Package::ltqmdd2qmdd(
+        Edge in, 
+        std::map<unsigned short, unsigned short>& varMap,
+        bool Mat[MAXN][MAXN]
+    ) {
+        if(opSeq.empty()) return;
+
+        std::vector<short>::reverse_iterator re_it = opSeq.rbegin();
+
+       
+
+        for(re_it=opSeq.rbegin(); re_it!=opSeq.rend(); ++re_it) {
+            if(*re_it>0) {
+                exchangeBaseCase(*re_it, in, varMap, false);
+            } else {
+                linearInPlace(-(*re_it), in, varMap, false); //不更新lt矩阵
+                xorLinear(-(*re_it), varMap, Mat); 
+            }
+        }
+        
+        return;
+    }
+
+    Edge Package::dynTraceBack(Edge in, std::map<unsigned short, unsigned short>& varMap) {
+        int mini = opSeq.size()-1;
+        unsigned int miniSize = size(in);
+        unsigned int curSize = miniSize;
+        for(int i=mini; i>=0; --i) {
+            if(opSeq[i] > 0) {
+                exchangeBaseCase(opSeq[i], in);
+               
+            } else {
+                linearInPlace(-opSeq[i], in);
+                xorLinear(-opSeq[i], varMap);
+            }
+
+            curSize = size(in);
+            if(curSize <= miniSize) {
+                miniSize = curSize;
+                mini = i;
+            }
+        }
+
+        for(int i=0; i<mini; ++i) {
+            if(opSeq[i] > 0) {
+                exchangeBaseCase(opSeq[i], in);
+               
+            } else {
+                linearInPlace(-opSeq[i], in);
+                xorLinear(-opSeq[i], varMap);
+            }
+        }
+        
+        opSeq.resize(mini+1);
+
+        return in;
+    }
+
+
 
 
 
@@ -512,7 +567,6 @@ namespace dd {
         return invmoves;
     }
 
-
     Edge Package::linearAndSiftingAux2(Edge in, 
     std::map<unsigned short, unsigned short>& varMap,
     bool fg
@@ -534,11 +588,13 @@ namespace dd {
 
         short pos = -1; //选中变量的index
 
-		/**/
-		
-		// xorInit(varMap);
-
-		/**/
+		/**
+        static bool matInit = true;
+		if(matInit) {
+            xorInit(varMap);
+            matInit = false;
+        }
+		**/
 
 
 		for (int i = 0; i < n; ++i) { //遍历各个变量
@@ -546,7 +602,7 @@ namespace dd {
             unsigned long min = size(in);
             unsigned long max = 0;
 
-            std::clog << "    " << i << "/" << n << " size=" << min << " | ";
+            // std::clog << "    " << i << "/" << n << " size=" << min << " | ";
             for (short j = 0; j < n; j++) {
                 if (free.at(varMap[j]) && active.at(varMap[j]) > (unsigned short)max) { //该变量没有被处理过并该变量存在结点
                     max = active.at(varMap[j]); //更新max

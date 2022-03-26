@@ -1,6 +1,33 @@
 #include "DDpackage.h"
 
 namespace dd {
+
+	Edge Package::depthCopyDD(const Edge &in) {
+		dd::ComplexNumbers::incRef(in.w);
+        if (isTerminal(in)) {
+
+			return makeTerminal(cn.lookup(in.w));;
+		}
+            
+		Edge out{getNode(), (in.w)};
+		out.p->v = in.p->v; //给新建的边赋上是index-1的结点的数据
+        out.p->normalizationFactor = in.p->normalizationFactor;
+        out.p->computeMatrixProperties = in.p->computeMatrixProperties;
+		// out.p->ident = in.p->ident;
+		// out.p->symm = in.p->symm;
+
+		unsigned short i=0;
+		for (auto &edge : in.p->e) {
+			if (edge.p != nullptr) {
+				out.p->e[i++] = depthCopyDD(edge);
+			}
+		}
+
+		out = UTlookup(out, false);  // look it up in the unique tables
+
+		return out;
+
+	}
 	
 	//DD var as index
 	//circuit var as variable
@@ -23,10 +50,10 @@ namespace dd {
 
 		for(int i=0; i<nqubits; ++i) //circuit var
 		{
-			std::cout << i << "	:	";
+			std::cout << invVarMap[i] << "	:	";
 			for(int j=0; j<nqubits; ++j) //dd variable (index)
 			{
-				if(xorMat[invVarMap[i]][j] > 0)
+				if(xorMat[i][j] > 0)
 					std::cout << j << " ";
 			}
 			std::cout << std::endl;
@@ -41,10 +68,10 @@ namespace dd {
 			invVarMap[i.second] = i.first; //DD qubit 到 电路 qubit 的映射
 		for(int i=0; i<nqubits; ++i) //index
 		{
-			std::cout << i << "	:	";
+			std::cout << invVarMap[i] << "	:	";
 			for(int j=0; j<nqubits; ++j) //variable
 			{
-				if(Mat[invVarMap[i]][j] > 0)
+				if(Mat[i][j] > 0)
 					std::cout << j << " ";
 			}
 			std::cout << std::endl;
@@ -54,14 +81,24 @@ namespace dd {
 	void Package::printLTMat(std::map<unsigned short, unsigned short>& varMap)
 	{
 		unsigned short nqubits = varMap.size();
-		std::map<unsigned short, unsigned short> invVarMap{}; //DD qubit（变量） 到 电路 qubit（变量） 的映射
-		for ( auto & i : varMap)
-			invVarMap[i.second] = i.first; //DD qubit 到 电路 qubit 的映射
 		for(int i=0; i<nqubits; ++i)
 		{
 			for(int j=0; j<nqubits; ++j)
 			{
-				std::cout << Package::xorMat[invVarMap[i]][j] << " ";
+				std::cout << Package::xorMat[i][j] << " ";
+			}
+			std::cout << std::endl;
+		}
+	}
+
+	void Package::printLTMat(std::map<unsigned short, unsigned short>& varMap, bool Mat[MAXN][MAXN])
+	{
+		unsigned short nqubits = varMap.size();
+		for(int i=0; i<nqubits; ++i)
+		{
+			for(int j=0; j<nqubits; ++j)
+			{
+				std::cout << Mat[i][j] << " ";
 			}
 			std::cout << std::endl;
 		}
@@ -69,13 +106,18 @@ namespace dd {
 
     void Package::xorInit(std::map<unsigned short, unsigned short>& varMap) { //初始化lt矩阵
 		const unsigned short varNum = varMap.size();
+
         for(int i=0; i<varNum; ++i) {
+			// std::fill(xorMat[varMap[i]], xorMat[varMap[i]]+varNum, 0);
+            // Package::xorMat[varMap[i]][i] = 1;
+			std::fill(xorMat[i], xorMat[i]+varNum, 0);
             Package::xorMat[i][i] = 1;
         }
     }
 
 	void Package::xorInit(std::map<unsigned short, unsigned short>& varMap, bool Mat[MAXN][MAXN]) { //初始化lt矩阵
 		const unsigned short varNum = varMap.size();
+		
         for(int i=0; i<varNum; ++i) {
 			std::fill(Mat[i], Mat[i]+varNum, 0);
             Mat[i][i] = 1;
@@ -91,16 +133,20 @@ namespace dd {
     }
 
 	//更新lt矩阵，只维护一个lt矩阵
-	// xorMat[circuit variable] -> linear transformation variable
+	// xorMat[circuit variable(DD的层)]
 	void Package::xorLinear(unsigned short index, std::map<unsigned short, unsigned short>& Map) { //更新lt矩阵
         const unsigned short varNum = Map.size();
 
 		for(int i=0; i<varNum; ++i)
             xorMat[Map[index]][i] ^= xorMat[Map[index-1]][i];
-			//xorMat[index][i] ^= xorMat[index-1][i];
-
 	
     }
+
+	void Package::printXorSeq(std::list<xorNode> &XorSeq) {
+		for(const xorNode &i : XorSeq) {
+			std::cout<<i.tvar<<"+"<<i.cvar<<std::endl;;
+		}
+	}
 
 	void Package::printOpSeq(std::list<Move> opSeq) {
 		for( auto &i : opSeq) {
@@ -128,20 +174,28 @@ namespace dd {
 		// std::clog << "ex:" << i << ", ";
 
 		// Real-time location map updates
-		unsigned short tmp = Map[i];
-		Map[i] = Map[i-1];
-		Map[i-1] = tmp;
+		// std::map<unsigned short, unsigned short> invVarMap;
+		// for(const auto &j:Map) invVarMap[j.second] = j.first;
+		// unsigned short tmp = invVarMap[i];
+		// invVarMap[i] = invVarMap[i-1];
+		// invVarMap[i-1] = tmp;
+		// for(const auto &j:invVarMap) Map[j.second] = j.first;
+
+		std::map<unsigned short, unsigned short> invVarMap;
+		for(const auto &j:Map) invVarMap[j.second] = j.first;
+		unsigned short tmp = invVarMap[i];
+		invVarMap[i] = invVarMap[i-1];
+		invVarMap[i-1] = tmp;
+		Map[invVarMap[i]] = i;
+		Map[invVarMap[i-1]] = i-1;
+
 		if(major) {
 			exchange_base_cases++;
 			// Record operation
-			Move curOp{};
-			curOp.index = i;
-			curOp.optype = SWAP_MOVE;
-			curOp.ddsize = -1;
-			if(!opSequence.empty() && opSequence.back() == curOp) {
-				opSequence.pop_back();
+			if(!opSeq.empty() && opSeq.back() == i) {
+				opSeq.pop_back();
 			} else {
-				opSequence.push_back(curOp);
+				opSeq.push_back(i);
 			}
 		}
 	    
@@ -185,18 +239,30 @@ namespace dd {
 		// std::clog << "lt:" << i << ", ";
 
 		// Update matrix or not
+		// if(major) {
+		// 	linear_in_place++;
+		// 	xorLinear(i, Map); //更新线性变换矩阵
+		// 	// Record operation
+		// 	Move curOp;
+		// 	curOp.index = i;
+		// 	curOp.optype = LINEAR_TRANSFORM_MOVE;
+		// 	curOp.ddsize = -1;
+		// 	if(!opSequence.empty() && opSequence.back() == curOp) {
+		// 		opSequence.pop_back();
+		// 	} else {
+		// 		opSequence.push_back(curOp);
+		// 	}
+		// }
 		if(major) {
-			linear_in_place++;
+			
 			xorLinear(i, Map); //更新线性变换矩阵
-			// Record operation
-			Move curOp;
-			curOp.index = i;
-			curOp.optype = LINEAR_TRANSFORM_MOVE;
-			curOp.ddsize = -1;
-			if(!opSequence.empty() && opSequence.back() == curOp) {
-				opSequence.pop_back();
+
+			if(!opSeq.empty() && opSeq.back() == -i) {
+				--linear_in_place;
+				opSeq.pop_back();
 			} else {
-				opSequence.push_back(curOp);
+				++linear_in_place;
+				opSeq.push_back(-i);
 			}
 		}
 
@@ -235,9 +301,6 @@ namespace dd {
 
 	void Package::linearInPlace(unsigned short i, Edge in) { //传入变量的索引和dd的根指针
 		std::clog << "lt:" << i << ", ";
-
-		// linear_in_place++;
-		// xorLinear(i); //更新线性变换矩阵
 
 		// copy unique table from higher variable and empty it
 		std::array<NodePtr, NBUCKET> table{};
@@ -311,11 +374,9 @@ namespace dd {
 				//for lt
 				if(i%2==0) {
 					x = (x+1+NEDGE)%NEDGE;
-					//y = (y+1+NEDGE)%NEDGE;
 					++y;
 				} else {
 					x = (x-1+NEDGE)%NEDGE;
-					//y = (y+1+NEDGE)%NEDGE;
 					++y;
 				}
 			}
@@ -337,7 +398,7 @@ namespace dd {
         // creating new nodes and appending corresponding edges
 		Edge newEdges[NEDGE]{ }; //创建要处理结点（P）的一组（4条）出边
 		for (int x = 0; x < NEDGE; ++x) { //搞定p结点的四个孩子
-			newEdges[x] = makeNonterminal(static_cast<short>(index - 1), t[x]); //规范新的index-1结点的四个孩子结点，输入index-1和index-1（4个）结点里面的第x条边
+			newEdges[x] = makeNonterminal(static_cast<short>(index - 1), t[x]); 
             incRef(newEdges[x]); //给新结点加引用计数
 			assert(is_locally_consistent_dd(newEdges[x]));
 		}//到此，变量索引为index-1的四个结点完成规范化
@@ -346,8 +407,41 @@ namespace dd {
             decRef(x);
 		// reuse p to build new top node
 		assert(p->ref > 0);
-        reuseNonterminal(static_cast<short>(index), newEdges, p, in); //对p（要处理的结点）重新规范化,传入index，刚刚生成新”第二层“结点，第一层结点指针，DD指针
+        reuseNonterminal(static_cast<short>(index), newEdges, p, in); 
 		// p might be discarded at this point if nodes were substituted
+	}
+
+	void Package::map2ltmap(std::list<xorNode> &xorSeq, std::map<unsigned short, unsigned short> varMap) {
+		// X gate matrix
+		constexpr dd::Matrix2x2 Xmat = {{{ 0, 0 }, { 1, 0 } }, {{ 1, 0 }, { 0, 0 } }};
+		const unsigned short nqubits = varMap.size();
+
+		// set control/target:
+		//    -1 don't care
+		//    0 neg. control
+		//    1 pos. control
+		//    2 target
+		short line[nqubits]{};
+		for(int i=0; i<nqubits; ++i) line[i] = -1;
+
+		Edge e = makeIdent(0, short(nqubits-1));
+		incRef(e);
+
+		for(const xorNode &i : xorSeq) {
+			line[varMap[i.tvar]] = 2;
+			line[varMap[i.cvar]] = 1;
+
+			auto tmp = multiply(makeGateDD(Xmat, nqubits, line), e);
+			incRef(tmp);
+			decRef(e);
+			e = tmp;
+			garbageCollect();
+
+			line[varMap[i.tvar]] = -1;
+			line[varMap[i.cvar]] = -1;
+		}
+
+		std::clog << "编码DD的大小：" << size(e) << std::endl;
 	}
 
 
