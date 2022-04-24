@@ -10,9 +10,11 @@
 namespace dd {
 
     typedef struct Move	{
+		//执行的动作
 		short index; //执行操作的索引
-		short pos; //实际选中将要进行操作的index
 		short optype; //0表示swap，1表示lt，2表示反lt
+		//执行操作后的状态
+		short pos; //执行操作后的位置
         unsigned int ddsize; //执行操作后的size
 		Move() {
 			this->index = -1;
@@ -22,7 +24,7 @@ namespace dd {
 		}
 		bool operator==(const Move b) const  
 		{ 
-			return this->index == b.index && this->optype == b.optype && this->ddsize == b.ddsize && this->pos == b.pos;  
+			return this->index==b.index&&this->optype==b.optype&&this->ddsize==b.ddsize&&this->pos==b.pos;  
 		}  
 	}Move;
 

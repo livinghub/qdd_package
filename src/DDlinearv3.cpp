@@ -20,7 +20,7 @@ namespace dd {
         std::vector<short> moves;
         for (int i = 0; i < n; ++i) { //遍历各个变量
             assert(is_globally_consistent_dd(in));
-            // unsigned long min = size(in);
+            unsigned long min = size(in);
             unsigned long max = 0;
 
             // std::clog << "    " << i << "/" << n << " size=" << min << " | ";
@@ -32,8 +32,8 @@ namespace dd {
                 }
             } //到此找到拥有最大结点数的变量，和该变量的索引（位置）
             free.at(varMap[pos]) = false; //设置选中的变量为处理状态
-            short optimalPos = pos; 
-            short originalPos = pos;
+            // std::clog <<pos;
+            assert(moves.empty());
 
             if(pos == n-1) {
                 // linear sifting to bottom
@@ -51,7 +51,7 @@ namespace dd {
                         assert(is_locally_consistent_dd(in));
                         moves.push_back(pos);
 
-                        if(ex_size <= total_min)  {
+                        if(ex_size < total_min)  {
                             total_min = ex_size;
                             index_min = moves.size();
                         }
@@ -59,13 +59,13 @@ namespace dd {
                         moves.push_back(pos);
                         moves.push_back(-pos);
 
-                        if(lt_size <= total_min)  {
+                        if(lt_size < total_min)  {
                             total_min = lt_size;
                             index_min = moves.size();
                         }
                     }
 
-                    //std::clog << "↓" << in_size << " ";
+                    // std::clog << "↓" << pos << " ";
                     --pos;
                     
                 } //到这里被选中的变量走到了最下面
@@ -83,9 +83,9 @@ namespace dd {
                     if(ex_size <= lt_size){
                         linearInPlace(pos+1, in, varMap);
                         assert(is_locally_consistent_dd(in));
-                        moves.push_back(pos+1);
+                        moves.push_back((pos+1));
 
-                        if(ex_size <= total_min)  {
+                        if(ex_size < total_min)  {
                             total_min = ex_size;
                             index_min = moves.size();
                         }
@@ -94,12 +94,12 @@ namespace dd {
                         moves.push_back((pos+1));
                         moves.push_back(-(pos+1));
 
-                        if(lt_size <= total_min)  {
+                        if(lt_size < total_min)  {
                             total_min = lt_size;
                             index_min = moves.size();
                         }
                     }
-                    //std::clog << "↑" << in_size << " ";
+                    // std::clog << "↑" << pos << " ";
                     ++pos;
                 }
             } else if (pos < n / 2) {  // variable is in lower half -> sifting to bottom first
@@ -118,7 +118,7 @@ namespace dd {
                         assert(is_locally_consistent_dd(in));
                         moves.push_back(pos);
 
-                        if(ex_size <= total_min)  {
+                        if(ex_size < total_min)  {
                             total_min = ex_size;
                             index_min = moves.size();
                         }
@@ -126,13 +126,13 @@ namespace dd {
                         moves.push_back(pos);
                         moves.push_back(-pos);
 
-                        if(lt_size <= total_min)  {
+                        if(lt_size < total_min)  {
                             total_min = lt_size;
                             index_min = moves.size();
                         }
                     }
 
-                    //std::clog << "↓" << in_size << " ";
+                    // std::clog << "↓" << pos << " ";
                     --pos;
                     
                 } //到这里被选中的变量走到了最下面
@@ -140,14 +140,16 @@ namespace dd {
                 //还原到初始状态
                 index_mid = moves.size();
                 if(index_mid > 0) {
-                    for(unsigned int i=index_mid-1; i>=0; --i) {
+                    for(int i=index_mid-1; i>=0; --i) {
                         if(moves[i] > 0) {
                             exchangeBaseCase(moves[i], in, varMap);
                             assert(is_locally_consistent_dd(in));
+                            ++pos;
                         } else {
                             linearInPlace(-moves[i], in, varMap);
                             assert(is_locally_consistent_dd(in));
                         }
+                        // std::clog << "-" << pos << " ";
                     }
                 }
 
@@ -166,7 +168,7 @@ namespace dd {
                         assert(is_locally_consistent_dd(in));
                         moves.push_back(pos+1);
 
-                        if(ex_size <= total_min)  {
+                        if(ex_size < total_min)  {
                             total_min = ex_size;
                             index_min = moves.size();
                         }
@@ -175,12 +177,12 @@ namespace dd {
                         moves.push_back((pos+1));
                         moves.push_back(-(pos+1));
 
-                        if(lt_size <= total_min)  {
+                        if(lt_size < total_min)  {
                             total_min = lt_size;
                             index_min = moves.size();
                         }
                     }
-                    //std::clog << "↑" << in_size << " ";
+                    // std::clog << "↑" << pos  << " ";
                     ++pos;
                 }
 
@@ -201,7 +203,7 @@ namespace dd {
                         assert(is_locally_consistent_dd(in));
                         moves.push_back(pos+1);
 
-                        if(ex_size <= total_min)  {
+                        if(ex_size < total_min)  {
                             total_min = ex_size;
                             index_min = moves.size();
                         }
@@ -210,25 +212,28 @@ namespace dd {
                         moves.push_back((pos+1));
                         moves.push_back(-(pos+1));
 
-                        if(lt_size <= total_min)  {
+                        if(lt_size < total_min)  {
                             total_min = lt_size;
                             index_min = moves.size();
                         }
                     }
-                    //std::clog << "↑" << in_size << " ";
+                    // std::clog << "↑" << pos << " ";
                     ++pos;
                 }
                 //还原到初始状态
                 index_mid = moves.size();
                 if(index_mid > 0) {
-                    for(unsigned int i=index_mid-1; i>=0; --i) {
+                    for(int i=index_mid-1; i>=0; --i) {
                         if(moves[i] > 0) {
                             exchangeBaseCase(moves[i], in, varMap);
                             assert(is_locally_consistent_dd(in));
+                            --pos;
                         } else {
                             linearInPlace(-moves[i], in, varMap);
                             assert(is_locally_consistent_dd(in));
                         }
+                        // std::clog << "-" << pos << " ";
+
                     }
                 }
                 // linear sifting to bottom
@@ -246,7 +251,7 @@ namespace dd {
                         assert(is_locally_consistent_dd(in));
                         moves.push_back(pos);
 
-                        if(ex_size <= total_min)  {
+                        if(ex_size < total_min)  {
                             total_min = ex_size;
                             index_min = moves.size();
                         }
@@ -254,21 +259,23 @@ namespace dd {
                         moves.push_back(pos);
                         moves.push_back(-pos);
 
-                        if(lt_size <= total_min)  {
+                        if(lt_size < total_min)  {
                             total_min = lt_size;
                             index_min = moves.size();
                         }
                     }
 
-                    //std::clog << "↓" << in_size << " ";
+                    // std::clog << "↓" << pos << " ";
                     --pos;
                     
                 } //到这里被选中的变量走到了最下面
             }
 
             // linear sifting to optimal position
+            // std::clog<<' '<<total_min<<':'<<index_min<<':'<<index_mid<<' ';
             if(index_min >= index_mid) {
-                for(int i=moves.size()-1; i>=index_min; --i) {
+                for(int i=moves.size()-1; i>=index_min && i>=0; --i) {
+                    // std::clog<<i<<":+"<<moves[i]<<' ';
                     if(moves[i] > 0) {
                         exchangeBaseCase(moves[i], in, varMap);
                         assert(is_locally_consistent_dd(in));
@@ -297,12 +304,13 @@ namespace dd {
                     }
                 }
             }
-
+            moves.clear();
+            index_min = index_mid = 0;
             initComputeTable();
 
                         // there are nodes which need to renormalized
             if (unnormalizedNodes > 0) {
-                std::clog << "{" << unnormalizedNodes << "} ";
+                // std::clog << "{" << unnormalizedNodes << "} ";
                 auto oldroot = root;
                 root = renormalize(root);
                 decRef(oldroot);
@@ -319,5 +327,6 @@ namespace dd {
         }
         return in;
     }
+
 
 }

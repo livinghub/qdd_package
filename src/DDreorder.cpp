@@ -466,8 +466,8 @@ namespace dd {
                     return random(in, varMap, mt);
                 }
 			case Window3: return window3(in, varMap);
-			case linearSift: return linearSifting(in, varMap);
-			// case linearSift: return linearAndSiftingAux(in, varMap, 1);
+			// case linearSift: return linearSifting(in, varMap);
+			case linearSift: return linearAndSiftingAux(in, varMap, 1);
 		}
 
 		return in;
@@ -608,7 +608,7 @@ namespace dd {
 
                         // there are nodes which need to renormalized
             if (unnormalizedNodes > 0) {
-                std::clog << "{" << unnormalizedNodes << "} ";
+                // std::clog << "{" << unnormalizedNodes << "} ";
                 auto oldroot = root;
                 root = renormalize(root);
                 decRef(oldroot);

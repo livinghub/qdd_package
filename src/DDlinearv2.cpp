@@ -2,16 +2,6 @@
 
 
 namespace dd {
-
-    using LTorderMap = std::map<unsigned short, std::vector<unsigned short>>; // varible -> LT varible
-	std::list<Move> MNULL;
-
-    std::list<Move> findPath(std::list<Move> moves);
-    std::list<Move> findPath(std::list<Move> movesA, std::list<Move> movesB);
-    std::list<Move> findDirPath(std::list<Move> movesUP, std::list<Move> movesDown, short orgOps, short optOps);
-    void printMoves(std::list<Move> moves);
-
-    
     Edge Package::linearAndSiftingAux(Edge in, 
     std::map<unsigned short, unsigned short>& varMap,
     bool fg
@@ -24,23 +14,11 @@ namespace dd {
 
 		std::vector<bool> free(n, true); //记录变量是否已经被处理
 
-		// std::map<unsigned short, unsigned short> invVarMap{}; //level->index; DD qubit（变量） 到 电路 qubit（变量） 的映射
-		// for ( auto & i : varMap)
-		// 	invVarMap[i.second] = i.first; //DD qubit 到 电路 qubit 的映射
-
 		computeMatrixProperties = Disabled;
 		Edge root{in}; //声明root边
 
 
         short pos = -1; //选中变量的index, 电路qubit
-
-		/**
-        static bool matInit = true;
-		if(matInit) {
-            xorInit(varMap);
-            matInit = false;
-        }
-		**/
 
 
 		for (int i = 0; i < n; ++i) { //遍历各个变量
@@ -57,9 +35,6 @@ namespace dd {
                 }
             } //到此找到拥有最大结点数的变量，和该变量的索引（位置）
             free.at(varMap[pos]) = false; //设置选中的DD变量为处理状态
-            //move.ddVar = varMap[pos]; //把已经处理的DD变量记录下来
-            short optimalPos = pos; 
-            short originalPos = pos;
 
             //记录初始位置
             Move curState;
@@ -71,84 +46,29 @@ namespace dd {
             curMoveV.push_back(curState);
             
             if(pos==n-1) { //选中的变量索引就是顶部
-                //
-                // std::clog<<"全部向下; "<<std::endl;
-                
-                // std::clog<<"下: ";
                 moveDown = linearAndSiftingDown(pos, in, varMap, curMoveV);
-                // std::clog<<"好: ";
-                linearAndSiftingBackward(optimalPos, in, varMap, moveDown);
-                // --optimalPos;
-                // std::clog<<"    原来位置和最佳位置："<<originalPos<<"and"<<optimalPos<<"    ";
-                
+                assert(pos == 0);
+                linearAndSiftingBackward(pos, in, varMap, moveDown);                
             } else if(pos==0) {
-                //
-                // std::clog<<"全部向上; "<<std::endl;
-                // std::clog<<"上: ";
                 moveUp = linearAndSiftingUp(pos, in, varMap, curMoveV);
-                // std::clog<<"好: ";
-                linearAndSiftingBackward(optimalPos, in, varMap, moveUp);
-                // std::clog<<"    原来位置和最佳位置："<<originalPos<<"and"<<optimalPos<<"    ";
+                assert(pos == n-1);
+                linearAndSiftingBackward(pos, in, varMap, moveUp);
             } else if(pos < n/2) { // variable is in lower half -> sifting to bottom first
-                //
-                // std::clog<<"先下后上; "<<std::endl;
-                // std::clog<<pos<<' ';
-                // std::clog<<"下: ";
                 moveDown = linearAndSiftingDown(pos, in, varMap, curMoveV);
-                if(moveDown.back().index != pos+1) {
-                    throw std::logic_error("检查aux-lsDown");
-                }
-                // std::clog<<pos<<' ';
-                // std::clog<<"还: ";
+                assert(pos == 0);
                 moveUp = undoMoves(pos, in, varMap, moveDown);
-                if(min != size(in)) throw std::logic_error("undo 错误 ");
-                // std::clog<<pos<<' ';
-                // std::clog<<"上: ";
                 moveUp = linearAndSiftingUp(pos, in, varMap, moveUp);
-                // std::clog<<pos<<' ';
-                // std::clog<<"好: ";
-                linearAndSiftingBackward(optimalPos, in, varMap, moveUp);
-                //--optimalPos;
-                // std::clog<<"    原来位置和最佳位置："<<originalPos<<"and"<<optimalPos<<"    ";
-               
+                assert(pos == n-1);
+                linearAndSiftingBackward(pos, in, varMap, moveUp);
             } else {
-                //
-                // std::clog<<"先上后下; "<<std::endl;
-                
-                // std::clog<<pos<<' ';
-                // std::clog<<"上: ";
                 moveUp = linearAndSiftingUp(pos, in, varMap, curMoveV);
-                // if(moveUp.back().index != pos) {
-                //     throw std::logic_error("检查aux-lsUp");
-                // }
-                
-                // std::clog<<pos<<' ';
-                // std::clog<<"还: ";
+                assert(pos == n-1);
                 moveDown = undoMoves(pos, in, varMap, moveUp);
-                if(min != size(in)) throw std::logic_error("undo 错误 ");
-                // --pos; //补偿
-                
-                // std::clog<<pos<<' ';
-                // std::clog<<"下: ";
                 moveDown = linearAndSiftingDown(pos, in, varMap, moveDown);
-                
-                // std::clog<<pos<<' ';
-                // std::clog<<"好: ";
-                linearAndSiftingBackward(optimalPos, in, varMap, moveDown);
-                // --optimalPos;
-                // std::clog<<"    原来位置和最佳位置："<<originalPos<<"and"<<optimalPos<<"    ";
-              
-            }
-            
-            if(optimalPos == originalPos) {
-                // std::clog<<"originalPos-size"<<originalPos<<'-'<<min<<';';
-                if(min != size(in)) throw std::logic_error("处理后的初始位置的size不等于原初始size");
-            } else if(min < size(in)) {
-                std::clog << size(in) << ' ';
-                throw std::logic_error("筛选后结果更差? ");
+                assert(pos == 0);
+                linearAndSiftingBackward(pos, in, varMap, moveDown);
             }
 
-            // opSeq.push_back(0);
 			initComputeTable();
 
 			// there are nodes which need to renormalized
@@ -183,60 +103,33 @@ namespace dd {
         std::map<unsigned short, unsigned short>& Map, 
         std::list<Move> &prevMoves
         ) {
-        //判断pos与传入的prevMoves是否冲突
-        // if(!prevMoves.empty()){
-        //    assert(prevMoves.back().index == pos);
-        // }
-        // std::clog << "向上尝试";
         
-        //
         const auto n = static_cast<short>(in.p->v + 1);
         std::list<Move> moves;
+        Move move;
 
-        //
         moves = prevMoves;
 
-        while (pos+1 < n ) {
-			// std::clog << "向上尝试";
+        while (pos < n-1 ) {
             exchangeBaseCase(pos+1, in, Map); //先对pos，pos-1执行swap
             auto ex_size = size(in);
 			linearInPlace(pos+1, in, Map); //再pos，pos-1执行L.T.
 			auto lt_size = size(in);
-            // std::clog << ex_size <<","<<lt_size<<" ";
 
-            Move move;
             move.index = pos+1;
-            move.pos = pos;
-            move.optype = SWAP_MOVE;
+            move.pos = pos+1;
             
             if(ex_size <= lt_size){ //swap效果更好
-				//** 抵消lt
-				// std::clog << "-";
 				linearInPlace(pos+1, in, Map);
-                auto lt_lt_size = size(in);
-                if(lt_lt_size!=ex_size) {
-                    std::clog<< lt_lt_size<<", "<<ex_size;
-                    throw std::logic_error("lt-lt 后,非还原状态");
-                }
                 move.ddsize = ex_size;
-
-                //debug
-                // std::clog<<"swap better"<<std::endl;
+                move.optype = SWAP_MOVE;
 			} else { //lt效果更好
-                //debug
-                // std::clog<<"lt better"<<std::endl;
-
-                // // Record xor operation (for dd qubit)
-                // xorNode curXOR(Map[pos+1], Map[pos]);
-                // xorSeq.push_back(curXOR);
-
                 move.ddsize = lt_size;
                 move.optype = LINEAR_TRANSFORM_MOVE;
 			}
             moves.push_back(move);
 
             //std::clog << "↓" << ex_size << " ";
-            assert(is_locally_consistent_dd(in));
             ++pos; //变量位置上移一位 
         }
 
@@ -249,16 +142,12 @@ namespace dd {
         std::map<unsigned short, unsigned short>& Map, 
         std::list<Move> &prevMoves
         ) {
-        //判断pos与传入的prevMoves是否冲突
-        // if(!prevMoves.empty() && prevMoves.back().index-1 != pos){
-        //     std::clog<<pos<<", "<< prevMoves.back().index<<";";
-        //     throw std::logic_error("传入位置错误,检查sifting down");
-        // }
 
         // std::clog << "向下尝试";
         
         //
         std::list<Move> moves;
+        Move move;
 
         //
         moves = prevMoves;
@@ -270,38 +159,22 @@ namespace dd {
 			linearInPlace(pos, in, Map); //再pos，pos-1执行L.T.
 			auto lt_size = size(in);
 
-            Move move;
             move.index = pos;
-            move.pos = pos;
-            move.optype = SWAP_MOVE;
+            move.pos = pos-1;
             
             if(ex_size <= lt_size){ //swap效果更好
 				//** 抵消lt
-				// std::clog << "-";
 				linearInPlace(pos, in, Map);
-                auto lt_lt_size = size(in);
-                if(lt_lt_size!=ex_size) {
-                    std::clog<< lt_lt_size<<", "<<ex_size;
-                    throw std::logic_error("lt-lt 后,非还原状态");
-                }
                 move.ddsize = ex_size;
+                move.optype = SWAP_MOVE;
 
-                //debug
-                // std::clog<<"swap better"<<std::endl;
+
 			} else { //lt效果更好
-                // // Record xor operation (for dd qubit)
-                // xorNode curXOR(Map[pos], Map[pos-1]);
-                // xorSeq.push_back(curXOR);
-
                 move.ddsize = lt_size;
                 move.optype = LINEAR_TRANSFORM_MOVE;
-
-                //debug
-                // std::clog<<"lt better"<<std::endl;
 			}
             moves.push_back(move);
 
-            assert(is_locally_consistent_dd(in));
             --pos; //变量位置下移一位 
         }
 
@@ -316,32 +189,20 @@ namespace dd {
         std::list<Move> &moves) {
         //找到最小size
         // std::clog<<"回到最好位置 ";
-        if(moves.empty()) {
-            //
-            throw std::logic_error("moves为空.");
-        }
 
         unsigned int bSize = UINT32_MAX;
         
-        std::list<Move>::reverse_iterator bestIt;
         for(std::list<Move>::reverse_iterator it=moves.rbegin(); it!=moves.rend(); ++it) {
-            // std::clog << "size-ind-op " << it->ddsize<<'-'<<it->index<<'-'<<it->optype<<"; ";
             if(it->ddsize<bSize) {
                 bSize = it->ddsize;
-                bestIt = it;
                 optimalPos = it->pos;
             }
         }  
-        // std::clog << "best size-index-pos:"<<bSize<<'-'<<bestIt->index<<'-'<<bestIt->pos<<';';
-        // for( auto &i : moves) {
-        //     std::clog << "size-ind-op：" << i.ddsize<<'-'<<i.index<<'-'<<i.optype<<' ';
-        // }
 
-        for(std::list<Move>::reverse_iterator it=moves.rbegin(); it!=moves.rend(); ) {
+        for(std::list<Move>::reverse_iterator it=moves.rbegin(); it!=moves.rend(); ++it) {
             
-            if(it->ddsize == bSize) {
-                
-                // std::clog<<"已是最佳位置a。";
+            if(it->ddsize == bSize) {   
+                optimalPos = it->pos;             
                 return 1;
             }  
             if(it->optype == LINEAR_TRANSFORM_MOVE) {
@@ -352,14 +213,7 @@ namespace dd {
             }
             if(it->optype == INVERSE_TRANSFORM_MOVE) {
                 linearInPlace(it->index, in, Map);
-            }
-            optimalPos = it->pos;
-            ++it;
-            if(it->ddsize != size(in)) {
-                std::clog<<size(in)<<' ';
-                std::cout<<"还原后的size和记录上的size不一致"<<std::endl;
-                throw std::logic_error("还原后的size和记录上的size不一致 ");
-            } 
+            }            
         }
 
         optimalPos = -1;
@@ -379,9 +233,8 @@ namespace dd {
         std::list<Move> invmoves;
         unsigned int curSize = 0;
         //
-        for(std::list<Move>::reverse_iterator it=moves.rbegin(); it!=moves.rend(); ) {            
+        for(std::list<Move>::reverse_iterator it=moves.rbegin(); it!=moves.rend(); ++it) {            
             if(it->optype == -1) {
-                if(curSize != it->ddsize) throw std::logic_error("undo() 出错");
                 break;
             }
             if(it->optype == SWAP_MOVE) {
@@ -403,14 +256,8 @@ namespace dd {
             curSize = size(in);
             invmove.index = it->index;
             invmove.ddsize = curSize;
-            ++it;
-            if(it!=moves.rend() && curSize != it->ddsize) {
-                std::clog<<"recS-curS: "<<it->ddsize<<'-'<<curSize<<' ';
-                std::cout<<"undo后的size和记录上的size不一致"<<std::endl;
-                throw std::logic_error("undo后的size和记录上的size不一致 ");
-            }
-            
-            invmoves.push_back(invmove);
+            invmove.pos = pos;
+            invmoves.push_back(invmove);        
         }
         return invmoves;
     }
