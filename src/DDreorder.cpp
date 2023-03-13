@@ -381,6 +381,9 @@ namespace dd {
                 assert(i-1 == p->e[3].p->v || isTerminal(p->e[3]));
 				if (p->ref != 0) { //确认这个结点引用计数不是0
                     exchangeBaseCase2(p, i, in); //传入该结点的指针，变量索引，DD指针
+					Edge tmp;
+					tmp.p = p;
+					std::clog << size(tmp) << ' ';
 				}
                 assert(p->v == i);
                 assert(i-1 == p->e[0].p->v || isTerminal(p->e[0]));
