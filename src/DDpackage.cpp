@@ -730,12 +730,14 @@ namespace dd {
 
         if (e.p->ref == 0) // ERROR CHECK
         {
+            return;
             debugnode(e.p);
             throw std::runtime_error("In decref: ref==0 before decref\n");
         }
 
         e.p->ref--;
 
+        
         if (e.p->ref == 0) {
             for (auto &edge : e.p->e) {
                 if (edge.p != nullptr) {

@@ -2,8 +2,45 @@
 
 namespace dd {
 
+	uint64_t Package::naiveCount(const Edge &in) {
+		const auto n = static_cast<short>(in.p->v);
+		uint64_t sizeNums = 0;
+		for (short j = 0; j <= n; j++) {
+			// sizeNums += active.at(varMap[j]);
+			sizeNums += active.at(j);
+		}
+		return sizeNums;
+	}
+
+	uint64_t Package::computeLowerBoundDown(std::map<uint16_t, uint16_t>& varMap, uint16_t i) {
+		uint64_t lb = 0, labA = 0, labB = 0;
+		uint16_t n = varMap.size();
+		for(uint16_t j=0; j<i; ++j) {
+			labA += active.at(varMap[j]);
+		}
+		for(uint16_t j=i+1; j<=n; ++j) {
+			labB += active.at(varMap[j]);
+		}
+		lb = labA + std::max((uint64_t)active.at(varMap[i]), 1+labB/2);
+		return lb;
+	}
+	
+	uint64_t Package::computeLowerBoundUp(std::map<uint16_t, uint16_t>& varMap, uint16_t i) {
+		uint64_t lb = 0, labA = 0, labC = 0;
+		uint16_t n = varMap.size();
+		for(uint16_t j=0; j<=i-2; ++j) {
+			labA += active.at(varMap[j]);
+		}
+		for(uint16_t j=i+1; j<=n; ++j) {
+			labC += active.at(varMap[j]);
+		}
+		// lb = i + (uint64_t)active.at(varMap[i])/(2<<i) + labC; //lb公式1
+		lb = labA + 1+active.at(varMap[i])/2 + labC; //lb2
+		return lb;
+	}
+
 	Edge Package::depthCopyDD(const Edge &in) {
-		dd::ComplexNumbers::incRef(in.w);
+		// dd::ComplexNumbers::incRef(in.w);
         if (isTerminal(in)) {
 
 			return makeTerminal(cn.lookup(in.w));;
@@ -29,7 +66,7 @@ namespace dd {
 
 	}
 	
-	//DD var as index
+	//DD var(level) as index
 	//circuit var as variable
 	void Package::printIndToVar(std::map<unsigned short, unsigned short> varMap) {
 		std::map<unsigned short, unsigned short> invVarMap{}; //DD qubit（变量） 到 电路 qubit（变量） 的映射
@@ -170,7 +207,7 @@ namespace dd {
 		return true;
 	}
 
-	void Package::exchangeBaseCase(unsigned short i, Edge in, std::map<unsigned short, unsigned short>& Map, bool major) { //传入变量和dd的根指针
+	void Package::exchangeBaseCase(unsigned short i, Edge in, std::map<unsigned short, unsigned short>& Map, bool major) { //传入DDindex（层）和dd的根指针
 		// std::clog << "ex:" << i << ", ";
 
 		// Real-time location map updates
@@ -220,6 +257,7 @@ namespace dd {
                 assert(i-1 == p->e[3].p->v || isTerminal(p->e[3]));
 				if (p->ref != 0) { //确认这个结点引用计数不是0
                     exchangeBaseCase2(p, i, in); //传入该结点的指针，变量索引，DD指针
+					// lowerExchange(p, i, in);
 				}
                 assert(p->v == i);
                 assert(i-1 == p->e[0].p->v || isTerminal(p->e[0]));
@@ -235,7 +273,7 @@ namespace dd {
 	}
 
 
-	void Package::linearInPlace(unsigned short i, Edge in, std::map<unsigned short, unsigned short>& Map, bool major) { //传入变量的索引和dd的根指针,和变量映射
+	void Package::linearInPlace(unsigned short i, Edge in, std::map<unsigned short, unsigned short>& Map, bool major, bool upOrLow) { //传入变量的索引和dd的根指针,和变量映射
 		// std::clog << "lt:" << i << ", ";
 
 		// Update matrix or not
@@ -286,7 +324,12 @@ namespace dd {
                 assert(i-1 == p->e[2].p->v || isTerminal(p->e[2]));
                 assert(i-1 == p->e[3].p->v || isTerminal(p->e[3]));
 				if (p->ref != 0) { //确认这个结点引用计数不是0
-                    linearInPlace2(p, i, in); //传入该结点的指针，变量索引，DD指针
+                    // linearInPlace2(p, i, in); //传入该结点的指针，变量索引，DD指针
+					if(upOrLow) {
+						upperExchange(p, i, in);
+					} else {
+						lowerExchange(p, i, in);
+					}
 				}
                 assert(p->v == i);
                 assert(i-1 == p->e[0].p->v || isTerminal(p->e[0]));
@@ -299,7 +342,7 @@ namespace dd {
 		
 	}
 
-	void Package::linearInPlace(unsigned short i, Edge in) { //传入变量的索引和dd的根指针
+	void Package::linearInPlace(unsigned short i, Edge in, bool upOrLow) { //传入变量的索引和dd的根指针
 		std::clog << "lt:" << i << ", ";
 
 		// copy unique table from higher variable and empty it
@@ -322,7 +365,12 @@ namespace dd {
                 assert(i-1 == p->e[2].p->v || isTerminal(p->e[2]));
                 assert(i-1 == p->e[3].p->v || isTerminal(p->e[3]));
 				if (p->ref != 0) { //确认这个结点引用计数不是0
-                    linearInPlace2(p, i, in); //传入该结点的指针，变量索引，DD指针
+                    // linearInPlace2(p, i, in); //传入该结点的指针，变量索引，DD指针
+					if(upOrLow) {
+						upperExchange(p, i, in);
+					} else {
+						lowerExchange(p, i, in);
+					}
 				}
                 assert(p->v == i);
                 assert(i-1 == p->e[0].p->v || isTerminal(p->e[0]));
@@ -334,9 +382,8 @@ namespace dd {
 		}
 	}
 
-	void Package::linearInPlace2(NodePtr p, unsigned short index, Edge in) {
+	void Package::upperExchange(NodePtr p, unsigned short index, Edge in) {
 		Edge t[NEDGE][NEDGE]{ }; //创建一个exchange用的矩阵
-        //Edge LTt[NEDGE][NEDGE]{ }; //lt用到的矩阵
 		assert(index > 0);
 		assert(index == p->v); //确定传入结点是属于index变量
 		//xorLinear(index);
@@ -383,7 +430,171 @@ namespace dd {
 			
 			
 		} //到这里，要处理的结点和它的孩子结点全都处理完，并把结点的孩子结点的出边和联合权值放入矩阵
-        //std::memcpy(t, LTt, sizeof(t)); //复制t矩阵给tmpt
+        
+
+        assert(is_locally_consistent_dd({p, CN::ZERO}));
+
+        // creating new nodes and appending corresponding edges
+		Edge newEdges[NEDGE]{ }; //创建要处理结点（P）的一组（4条）出边
+		for (int x = 0; x < NEDGE; ++x) { //搞定p结点的四个孩子
+			newEdges[x] = makeNonterminal(static_cast<short>(index - 1), t[x]); 
+            incRef(newEdges[x]); //给新结点加引用计数
+			assert(is_locally_consistent_dd(newEdges[x]));
+		}//到此，变量索引为index-1的四个结点完成规范化
+
+        for (dd::Edge& x : p->e) //把结点原来只想它的孩子的边撤掉
+            decRef(x);
+		// reuse p to build new top node
+		assert(p->ref > 0);
+        reuseNonterminal(static_cast<short>(index), newEdges, p, in); 
+		// p might be discarded at this point if nodes were substituted
+	}
+
+	void Package::lowerExchange(NodePtr p, unsigned short index, Edge in) {
+		Edge t[NEDGE][NEDGE]{ }; //创建一个exchange用的矩阵
+		assert(index > 0);
+		assert(index == p->v); //确定传入结点是属于index变量
+		//xorLinear(index);
+
+		//for lt
+		int x,y;
+        // creating matrix T
+		for (int i = 0; i < NEDGE; i++) { //遍历要处理结点的每条出边
+			x = i;
+			y = i;
+			for (int j = 0; j < NEDGE; j++) { //遍历它的孩子结点的每一条出边
+				if (p->e[i].p->v == index - 1) { //如果要处理结点的孩子结点是属于它的下一个变量的（如本结点是i变量的，它的孩子结点是i-1变量的）
+				    assert(!isTerminal(p->e[i]));
+
+					t[x][y] = p->e[i].p->e[j]; //结点第i条边的孩子的第j条边放入矩阵中
+					auto c = cn.getTempCachedComplex(); //拿到一个临时复数c
+					CN::mul(c, p->e[i].p->e[j].w, p->e[i].w); //复数乘法，结点出边权值*它的孩子的出边权值=c
+					if (p->e[i].p->normalizationFactor != CN::ONE) { //如果改结点的规范因子不是1，就把c乘上规范因子
+						CN::mul(c, c, p->e[i].p->normalizationFactor);
+					}
+					t[x][y].w = cn.lookup(c); //给记录的边附上权值c
+				} else if (isTerminal(p->e[i])) { //要处理结点的孩子结点是终端结点
+					// edge pointing to a terminal
+					t[x][y] = p->e[i]; //矩阵记录的就是结点的出边
+                    assert(t[x][y].p->normalizationFactor == CN::ONE); //这样的话确定这条边的结点规范因子是1
+				} else { //上面两种情况都不是的话，就出问题了，出错处理
+				    debugnode(p);
+				    std::stringstream hex_addr;
+				    hex_addr << "0x" << std::hex << reinterpret_cast<std::uintptr_t>(p);
+				    throw std::runtime_error("Edge " + std::to_string(i)
+				        + " of " + hex_addr.str()
+				        + " pointing to a skipped variable: "
+				        + std::to_string(index) + " --> " + std::to_string(p->e[i].p->v));
+				}
+				//for lt
+				if(i%2==0) {
+					y = (y+1)%NEDGE;
+				} else {
+					y = (y-1+NEDGE)%NEDGE;
+				}
+			}
+			
+			
+		} //到这里，要处理的结点和它的孩子结点全都处理完，并把结点的孩子结点的出边和联合权值放入矩阵
+        
+
+        assert(is_locally_consistent_dd({p, CN::ZERO}));
+
+        // creating new nodes and appending corresponding edges
+		Edge newEdges[NEDGE]{ }; //创建要处理结点（P）的一组（4条）出边
+		for (int x = 0; x < NEDGE; ++x) { //搞定p结点的四个孩子
+			newEdges[x] = makeNonterminal(static_cast<short>(index - 1), t[x]); 
+            incRef(newEdges[x]); //给新结点加引用计数
+			assert(is_locally_consistent_dd(newEdges[x]));
+		}//到此，变量索引为index-1的四个结点完成规范化
+
+        for (dd::Edge& x : p->e) //把结点原来只想它的孩子的边撤掉
+            decRef(x);
+		// reuse p to build new top node
+		assert(p->ref > 0);
+        reuseNonterminal(static_cast<short>(index), newEdges, p, in); 
+		// p might be discarded at this point if nodes were substituted
+	}
+
+	void Package::linearInPlace2(NodePtr p, unsigned short index, Edge in) {
+		Edge t[NEDGE][NEDGE]{ }; //创建一个exchange用的矩阵
+		assert(index > 0);
+		assert(index == p->v); //确定传入结点是属于index变量
+		//xorLinear(index);
+
+		//for lt
+		int x,y;
+        // creating matrix T
+		for (int i = 0; i < NEDGE; i++) { //遍历要处理结点的每条出边
+			x = i;
+			y = 0;
+			for (int j = 0; j < NEDGE; j++) { //遍历它的孩子结点的每一条出边
+				if (p->e[i].p->v == index - 1) { //如果要处理结点的孩子结点是属于它的下一个变量的（如本结点是i变量的，它的孩子结点是i-1变量的）
+				    assert(!isTerminal(p->e[i]));
+
+					t[x][y] = p->e[i].p->e[j]; //结点第i条边的孩子的第j条边放入矩阵中
+					auto c = cn.getTempCachedComplex(); //拿到一个临时复数c
+					CN::mul(c, p->e[i].p->e[j].w, p->e[i].w); //复数乘法，结点出边权值*它的孩子的出边权值=c
+					if (p->e[i].p->normalizationFactor != CN::ONE) { //如果改结点的规范因子不是1，就把c乘上规范因子
+						CN::mul(c, c, p->e[i].p->normalizationFactor);
+					}
+					t[x][y].w = cn.lookup(c); //给记录的边附上权值c
+				} else if (isTerminal(p->e[i])) { //要处理结点的孩子结点是终端结点
+					// edge pointing to a terminal
+					t[x][y] = p->e[i]; //矩阵记录的就是结点的出边
+                    assert(t[x][y].p->normalizationFactor == CN::ONE); //这样的话确定这条边的结点规范因子是1
+				} else { //上面两种情况都不是的话，就出问题了，出错处理
+				    debugnode(p);
+				    std::stringstream hex_addr;
+				    hex_addr << "0x" << std::hex << reinterpret_cast<std::uintptr_t>(p);
+				    throw std::runtime_error("Edge " + std::to_string(i)
+				        + " of " + hex_addr.str()
+				        + " pointing to a skipped variable: "
+				        + std::to_string(index) + " --> " + std::to_string(p->e[i].p->v));
+				}
+				//for lt
+				if(i%2==0) {
+					x = (x+1)%NEDGE;
+					++y;
+				} else {
+					x = (x-1+NEDGE)%NEDGE;
+					++y;
+				}
+			}
+			
+			
+		} //到这里，要处理的结点和它的孩子结点全都处理完，并把结点的孩子结点的出边和联合权值放入矩阵
+        
+		// // creating matrix T
+		// for (int i = 0; i < NEDGE; i++) { //遍历要处理结点的每条出边
+		// 	for (int j = 0; j < NEDGE; j++) { //遍历它的孩子结点的每一条出边
+		// 		if (p->e[i].p->v == index - 1) { //这里是图变量，如果要处理结点的孩子结点是属于它的下一个变量的（如本结点是i变量的，它的孩子结点是i-1变量的）
+		// 		    assert(!isTerminal(p->e[i]));
+
+		// 			t[j][i] = p->e[i].p->e[j]; //结点第i条边的孩子的第j条边放入矩阵中
+		// 			auto c = cn.getTempCachedComplex(); //拿到一个临时复数c
+		// 			CN::mul(c, p->e[i].p->e[j].w, p->e[i].w); //复数乘法，结点出边权值*它的孩子的出边权值=c
+		// 			if (p->e[i].p->normalizationFactor != CN::ONE) { //如果改结点的规范因子不是1，就把c乘上规范因子
+		// 				CN::mul(c, c, p->e[i].p->normalizationFactor);
+		// 			}
+		// 			t[j][i].w = cn.lookup(c); //给记录的边附上权值c
+		// 		} else if (isTerminal(p->e[i])) { //要处理结点的孩子结点是终端结点
+		// 			// edge pointing to a terminal
+		// 			t[j][i] = p->e[i]; //矩阵记录的就是结点的出边
+        //             assert(t[j][i].p->normalizationFactor == CN::ONE); //这样的话确定这条边的结点规范因子是1
+		// 		} else { //上面两种情况都不是的话，就出问题了，出错处理
+		// 		    debugnode(p);
+		// 		    std::stringstream hex_addr;
+		// 		    hex_addr << "0x" << std::hex << reinterpret_cast<std::uintptr_t>(p);
+		// 		    throw std::runtime_error("Edge " + std::to_string(i)
+		// 		        + " of " + hex_addr.str()
+		// 		        + " pointing to a skipped variable: "
+		// 		        + std::to_string(index) + " --> " + std::to_string(p->e[i].p->v));
+		// 		}
+		// 	}
+		// } //到这里，要处理的结点和它的孩子结点全都处理完，并把结点的孩子结点的出边和联合权值放入矩阵
+		// Edge LTt[NEDGE][NEDGE]{ }; //lt用到的矩阵
+		// std::memcpy(LTt, t, sizeof(t)); //复制t矩阵给tmpt
 
         // for(int x=0, i, j; x<NEDGE; ++x) { //重排矩阵方便处理
         //     i=x, j=0;
@@ -392,6 +603,7 @@ namespace dd {
         //     else 
         //         for(int y=0; y<NEDGE; ++y) LTt[y][x] = t[(NEDGE+i--)%NEDGE][j++];
         // }
+		// std::memcpy(t, LTt, sizeof(LTt)); //复制t矩阵给tmpt
 
         assert(is_locally_consistent_dd({p, CN::ZERO}));
 

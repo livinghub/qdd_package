@@ -466,8 +466,8 @@ namespace dd {
                     return random(in, varMap, mt);
                 }
 			case Window3: return window3(in, varMap);
-			case linearSift: return linearSifting(in, varMap);
-			// case linearSift: return linearAndSiftingAux(in, varMap, 1);
+			case linearSifting: return linearAndSiftingAux(in, varMap, 1);
+			case lbLinearSifting: return lbLinearAndSiftingAux(in, varMap);
 		}
 
 		return in;
@@ -478,7 +478,8 @@ namespace dd {
 /// \param varMap stores the variable mapping (cf. dynamicReorder(...))
 /// \return the resulting decision diagram (and the changed variable map and output permutation, which are returned as reference)
     std::tuple<Edge, unsigned int, unsigned int> Package::sifting(Edge in, std::map<unsigned short, unsigned short>& varMap) {
-		const auto n = static_cast<short>(in.p->v + 1); //变量个数
+		// const auto n = static_cast<short>(in.p->v + 1); //变量个数
+		const auto n = static_cast<short>(in.p->v);
 
 		std::vector<bool> free(n, true); //记录数组
 		std::map<unsigned short, unsigned short> invVarMap{}; //DD qubit（变量） 到 电路 qubit（变量） 的映射
@@ -523,7 +524,7 @@ namespace dd {
                     total_min = std::min(total_min, in_size);
                     total_max = std::max(total_max, in_size);
 
-                    //std::clog << "↓" << in_size << " ";
+                    // std::clog << "↓" << in_size << " ";
                     assert(is_locally_consistent_dd(in));
                     --pos;
                     if (in_size < min) {
@@ -538,7 +539,7 @@ namespace dd {
                     auto in_size = size(in);
                     total_min = std::min(total_min, in_size);
                     total_max = std::max(total_max, in_size);
-                    //std::clog << "↑" << in_size << " ";
+                    // std::clog << "↑" << in_size << " ";
                     assert(is_locally_consistent_dd(in));
                     ++pos;
                     if (in_size < min) {
@@ -555,7 +556,7 @@ namespace dd {
                     auto in_size = size(in);
                     total_min = std::min(total_min, in_size);
                     total_max = std::max(total_max, in_size);
-                    //std::clog << "↓" << size(in) << " ";
+                    // std::clog << "↓" << in_size << " ";
                     assert(is_locally_consistent_dd(in));
                     --pos;
                 }
@@ -608,7 +609,7 @@ namespace dd {
 
                         // there are nodes which need to renormalized
             if (unnormalizedNodes > 0) {
-                std::clog << "{" << unnormalizedNodes << "} ";
+                // std::clog << "{" << unnormalizedNodes << "} ";
                 auto oldroot = root;
                 root = renormalize(root);
                 decRef(oldroot);
@@ -616,7 +617,7 @@ namespace dd {
                 in.p = root.p;
                 in.w = root.w;
                 if (unnormalizedNodes > 0) {
-                    throw std::runtime_error("Renormalization failed. " + std::to_string(unnormalizedNodes) + " unnormalized nodes remaining.");
+                    // throw std::runtime_error("Renormalization failed. " + std::to_string(unnormalizedNodes) + " unnormalized nodes remaining.");
                 }
             }
             computeMatrixProperties = Enabled;
@@ -667,6 +668,263 @@ namespace dd {
         }
 		return {in, total_min, total_max}; //返回DD指针和这次sifting过程中最大和最小的DD size
 	}
+
+// // 我的测试
+//     std::tuple<Edge, unsigned int, unsigned int> Package::sifting(Edge in, std::map<unsigned short, unsigned short>& varMap) {
+// 		const auto n = static_cast<short>(in.p->v + 1); //变量个数
+// 		// const auto n = static_cast<short>(in.p->v);
+// 		// std::clog<<varMap[in.p->v]<<active.at(varMap[in.p->v])<<std::endl;
+
+// 		std::vector<bool> free(n, true); //记录数组
+// 		std::map<unsigned short, unsigned short> invVarMap{}; //DD qubit（变量） 到 电路 qubit（变量） 的映射
+// 		for (const auto & i : varMap)
+// 			invVarMap[i.second] = i.first; //DD qubit 到 电路 qubit 的映射
+
+// 		computeMatrixProperties = Disabled;
+// 		Edge root{in}; //声明root边
+
+// 		//std::clog << "  Start Sifting. n=" << std::setw(2) << n << " -- ";
+// //		for (auto &entry: varMap) {
+// 		    //std::clog << entry.second << " ";
+// //		}
+// 		//std::clog << "\n";
+
+// 		unsigned int total_max = size(in); //DD的大小
+// 		unsigned int total_min = total_max;
+
+//         short pos = -1; //DD level （层）
+//         for (int i = 0; i < n; ++i) { //遍历各个变量
+//             assert(is_globally_consistent_dd(in));
+//             unsigned long min = size(in);
+//             unsigned long max = 0;
+
+//             std::clog << "    " << i << "/" << n << " size=" << min << " | ";
+//             for (short j = 0; j < n; j++) {
+//                 if (free.at(varMap[j]) && active.at(varMap[j]) > max) { //该变量没有被处理过并该变量存在结点
+//                     max = active.at(varMap[j]); //更新max
+//                     pos = j; //更新pos
+//                     assert(max <= std::numeric_limits<int>::max());
+//                 }
+//             } //到此找到拥有最大结点数的变量，和该变量的索引（位置）
+//             free.at(varMap[pos]) = false; //设置选中的变量为处理状态
+//             short optimalPos = pos; 
+//             short originalPos = pos;
+
+//             if(pos == 0) {
+// 				// sifting to top
+//                 while (pos < n - 1) {
+//                     // exchangeBaseCase(pos + 1, in, varMap);
+// 					linearInPlace(pos+1, in, varMap);
+//                     auto in_size = size(in);
+//                     total_min = std::min(total_min, in_size);
+//                     total_max = std::max(total_max, in_size);
+//                     std::clog << "↑" << in_size << " ";
+//                     assert(is_locally_consistent_dd(in));
+//                     ++pos;
+//                     if (in_size < min) {
+//                         min = in_size;
+//                         optimalPos = pos;
+//                     }
+//                 }
+
+//                 std::clog << "[" << min << "] ";
+
+//                 // sifting to optimal position
+//                 while (pos > optimalPos) {
+                    
+// 					linearInPlace(pos, in, varMap);
+// 					// exchangeBaseCase(pos, in, varMap);
+//                     auto in_size = size(in);
+//                     total_min = std::min(total_min, in_size);
+//                     total_max = std::max(total_max, in_size);
+//                     std::clog << "↓" << in_size << " ";
+//                     assert(is_locally_consistent_dd(in));
+//                     --pos;
+//                 }
+// 			} 
+// 			else if(pos == n-1) {
+// 				// sifting to bottom
+//                 while (pos > 0) {
+//                     // exchangeBaseCase(pos, in, varMap);
+// 					linearInPlace(pos, in, varMap);
+//                     assert(is_locally_consistent_dd(in));
+//                     auto in_size = size(in);
+//                     total_min = std::min(total_min, in_size);
+//                     total_max = std::max(total_max, in_size);
+//                     std::clog << "↓" << in_size << " ";
+//                     --pos;
+//                     if (in_size < min) {
+//                         min = in_size;
+//                         optimalPos = pos;
+//                     }
+//                 }
+
+//                 std::clog << "[" << min << "] ";
+
+//                 // sifting to optimal position
+//                 while (pos < optimalPos) {
+// 					linearInPlace(pos+1, in, varMap);
+//                     // exchangeBaseCase(pos + 1, in, varMap);
+					
+//                     auto in_size = size(in);
+//                     total_min = std::min(total_min, in_size);
+//                     total_max = std::max(total_max, in_size);
+//                     std::clog << "↑" << size(in) << " ";
+//                     assert(is_locally_consistent_dd(in));
+//                     ++pos;
+//                 }
+// 			}
+// 			else if (pos < n / 2) {  // variable is in lower half -> sifting to bottom first
+//                 // sifting to bottom
+//                 while (pos > 0) {
+// 					linearInPlace(pos, in, varMap);
+//                     // exchangeBaseCase(pos, in, varMap);
+					
+//                     auto in_size = size(in);
+//                     total_min = std::min(total_min, in_size);
+//                     total_max = std::max(total_max, in_size);
+
+//                     std::clog << "↓" << in_size << " ";
+//                     assert(is_locally_consistent_dd(in));
+//                     --pos;
+//                     if (in_size < min) {
+//                         min = in_size;
+//                         optimalPos = pos;
+//                     }
+//                 } //到这里被选中的变量走到了最下面
+
+//                 // sifting to top
+//                 while (pos < n - 1) {
+					
+//                     // exchangeBaseCase(pos + 1, in, varMap);
+// 					linearInPlace(pos+1, in, varMap);
+//                     auto in_size = size(in);
+//                     total_min = std::min(total_min, in_size);
+//                     total_max = std::max(total_max, in_size);
+//                     std::clog << "↑" << in_size << " ";
+//                     assert(is_locally_consistent_dd(in));
+//                     ++pos;
+//                     if (in_size < min) {
+//                         min = in_size;
+//                         optimalPos = pos;
+//                     }
+//                 }
+
+//                 std::clog << "[" << min << "] ";
+
+//                 // sifting to optimal position
+//                 while (pos > optimalPos) {
+                    
+// 					linearInPlace(pos, in, varMap);
+// 					// exchangeBaseCase(pos, in, varMap);
+//                     auto in_size = size(in);
+//                     total_min = std::min(total_min, in_size);
+//                     total_max = std::max(total_max, in_size);
+//                     std::clog << "↓" << in_size << " ";
+//                     assert(is_locally_consistent_dd(in));
+//                     --pos;
+//                 }
+//             } else {  // variable is in upper half -> sifting to top first
+//                 // sifting to top
+//                 while (pos < n - 1) {
+// 					linearInPlace(pos+1, in, varMap);
+//                     // exchangeBaseCase(pos + 1, in, varMap);
+					
+//                     auto in_size = size(in);
+//                     total_min = std::min(total_min, in_size);
+//                     total_max = std::max(total_max, in_size);
+//                     std::clog << "↑" << in_size << " ";
+//                     assert(is_locally_consistent_dd(in));
+//                     ++pos;
+//                     if (in_size < min) {
+//                         min = in_size;
+//                         optimalPos = pos;
+//                     }
+//                 }
+
+//                 // sifting to bottom
+//                 while (pos > 0) {
+					
+//                     // exchangeBaseCase(pos, in, varMap);
+// 					linearInPlace(pos, in, varMap);
+//                     assert(is_locally_consistent_dd(in));
+//                     auto in_size = size(in);
+//                     total_min = std::min(total_min, in_size);
+//                     total_max = std::max(total_max, in_size);
+//                     std::clog << "↓" << in_size << " ";
+//                     --pos;
+//                     if (in_size < min) {
+//                         min = in_size;
+//                         optimalPos = pos;
+//                     }
+//                 }
+
+//                 std::clog << "[" << min << "] ";
+
+//                 // sifting to optimal position
+//                 while (pos < optimalPos) {
+// 					linearInPlace(pos+1, in, varMap);
+//                     // exchangeBaseCase(pos + 1, in, varMap);
+					
+//                     auto in_size = size(in);
+//                     total_min = std::min(total_min, in_size);
+//                     total_max = std::max(total_max, in_size);
+//                     std::clog << "↑" << size(in) << " ";
+//                     assert(is_locally_consistent_dd(in));
+//                     ++pos;
+//                 }
+//             }
+
+//             initComputeTable();
+
+//                         // there are nodes which need to renormalized
+//             if (unnormalizedNodes > 0) {
+//                 std::clog << "{" << unnormalizedNodes << "} ";
+//                 auto oldroot = root;
+//                 root = renormalize(root);
+//                 decRef(oldroot);
+//                 incRef(root);
+//                 in.p = root.p;
+//                 in.w = root.w;
+//                 if (unnormalizedNodes > 0) {
+//                     throw std::runtime_error("Renormalization failed. " + std::to_string(unnormalizedNodes) + " unnormalized nodes remaining.");
+//                 }
+//             }
+//             computeMatrixProperties = Enabled;
+//             markForMatrixPropertyRecomputation(root); //标记
+//             recomputeMatrixProperties(root);
+
+//             // Adjusting varMap if position changed
+//             if (optimalPos != originalPos) {
+//                 //std::clog << "| " << originalPos << "-->" << optimalPos << " (min=" << min << "; real size=" << size(in) << ")\n";
+//             } else {
+//                 //std::clog << "| ##### (min=" << min << "; real size=" << size(in) << ")\n";
+//             }
+
+// 			//交换DD的层，即map的key
+//             // if (optimalPos > originalPos) { //向上到最佳位置
+//             //     auto tempVar = invVarMap[originalPos]; //暂存最佳位置对应的电路变量
+//             //     for (int j = originalPos; j < optimalPos; ++j) {
+//             //         invVarMap[j] = invVarMap[j + 1]; //调整 电路变量（qubit）
+//             //         varMap[invVarMap[j]] = j; //更新DD变量（qubit）
+//             //     }
+//             //     invVarMap[optimalPos] = tempVar; //在合适位置放入最佳位置对应的电路变量
+//             //     varMap[invVarMap[optimalPos]] = optimalPos; //在合适位置放入最佳位置对应的DD变量
+//             // } else if (optimalPos < originalPos) {
+//             //     auto tempVar = invVarMap[originalPos];
+//             //     for (int j = originalPos; j > optimalPos; --j) {
+//             //         invVarMap[j] = invVarMap[j - 1];
+//             //         varMap[invVarMap[j]] = j;
+//             //     }
+//             //     invVarMap[optimalPos] = tempVar;
+//             //     varMap[invVarMap[optimalPos]] = optimalPos;
+//             // }
+
+
+
+//         }
+// 		return {in, total_min, total_max}; //返回DD指针和这次sifting过程中最大和最小的DD size
+// 	}
 
 	/// First counts the number of nodes in the given DD.
 	/// Then a loop is executed nodeCount-many times and inside

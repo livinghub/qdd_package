@@ -1,6 +1,6 @@
 #ifndef DDlinear_H
 #define DDlinear_H
-
+#include <stack>
 
 #define SWAP_MOVE 0
 #define LINEAR_TRANSFORM_MOVE 1
@@ -10,8 +10,8 @@
 namespace dd {
 
     typedef struct Move	{
-		short index; //执行操作的索引
-		short pos; //实际选中将要进行操作的index
+		short index; //执行操作的那一level的
+		short pos; //执行操作后的所在的位置
 		short optype; //0表示swap，1表示lt，2表示反lt
         unsigned int ddsize; //执行操作后的size
 		Move() {
@@ -35,7 +35,9 @@ namespace dd {
 		}
 	}xorNode;
 
-    
+    enum class dynBuildStrat {
+		None, Sifting, LinearSift, SiftingConv, LinearSiftConv, SiftingThenLS, GoodOrderLS, InOrder
+	};
 
 
 }

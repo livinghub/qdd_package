@@ -67,7 +67,7 @@ namespace dd {
 	    Edge e[NEDGE];     // edges out of this node
 	    Complex normalizationFactor; // stores normalization factor
 	    unsigned int ref;       // reference count
-	    short v;        // variable index (nonterminal) value (-1 for terminal)
+	    short v;        // variable index (nonterminal) value (-1 for terminal) (层)
 	    bool ident, symm; // special matrices flags
 	    ComputeMatrixPropertiesMode computeMatrixProperties; // indicates whether to compute matrix properties
 	    unsigned int reuseCount;
@@ -147,7 +147,7 @@ namespace dd {
     };
 
 	enum DynamicReorderingStrategy {
-		None, Sifting, Random, Window3, linearSift
+		None, Sifting, Random, Window3, linearSifting, lbLinearSifting
 	};
 
 	enum Mode {
@@ -333,10 +333,12 @@ namespace dd {
 		std::vector<short> opSeq; //正数为ex，负数为lt
 		unsigned int dynThreshold = 500; //动态最小化触发值
 
-		void linearInPlace(unsigned short i, Edge in);
-		void linearInPlace(unsigned short i, Edge in, std::map<unsigned short, unsigned short>& Map, bool major=true);
+		void linearInPlace(unsigned short i, Edge in, bool upOrLow = true);
+		void linearInPlace(unsigned short i, Edge in, std::map<unsigned short, unsigned short>& Map, bool major=true, bool upOrLow=0);
 		void exchangeBaseCase(unsigned short i, Edge in, std::map<unsigned short, unsigned short>& Map, bool major=true);
 		void linearInPlace2(NodePtr p, unsigned short index, Edge in);
+		void upperExchange(NodePtr p, unsigned short index, Edge in);
+		void lowerExchange(NodePtr p, unsigned short index, Edge in);
 		void xorInit(std::map<unsigned short, unsigned short>& varMap);
 		void xorInit(std::map<unsigned short, unsigned short>& varMap, bool Mat[MAXN][MAXN]);
 		void xorLinear(unsigned short index,  std::map<unsigned short, unsigned short>& Map, bool Mat[MAXN][MAXN]);
@@ -350,20 +352,37 @@ namespace dd {
 		void printXorSeq(std::list<xorNode> &XorSeq);
 		bool matIsEqual(bool mat[MAXN][MAXN]);
 		Edge linearAndSiftingAux(Edge in, std::map<unsigned short, unsigned short>& varMap);
+		Edge lbLinearAndSiftingAux(Edge in, std::map<unsigned short, unsigned short>& varMap);
 		Edge linearAndSiftingAux(Edge in, std::map<unsigned short, unsigned short>& varMap, bool fg);
 		Edge linearAndSiftingAux2(Edge in, std::map<unsigned short, unsigned short>& varMap, bool fg);
 		std::list<Move> undoMoves(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &moves);
 		std::list<Move> exchangMoves(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &moves);
         int linearAndSiftingBackward(short &optimalPos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &moves);
         std::list<Move> linearAndSiftingDown(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
-        std::list<Move> linearAndSiftingUp(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
+        std::list<Move> lbLinearAndSiftingDown(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
+		std::list<Move> linearAndSiftingUp(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
+		std::list<Move> lbLinearAndSiftingUp(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
 		std::tuple<Edge, unsigned int, unsigned int> linearSiftingv1(Edge in, std::map<unsigned short, unsigned short>& varMap);
 		void qmdd2ltqmdd(Edge in, std::map<unsigned short, unsigned short>& varMap, bool Mat[MAXN][MAXN]);
 		void ltqmdd2qmdd(Edge in, std::map<unsigned short, unsigned short>& varMap, bool Mat[MAXN][MAXN]);
 		void map2ltmap(std::list<xorNode> &xorSeq, std::map<unsigned short, unsigned short> varMap);
 		Edge dynTraceBack(Edge in, std::map<unsigned short, unsigned short>& varMap);
 		Edge depthCopyDD(const Edge &in);
-		Edge linearSifting(Edge in, std::map<unsigned short, unsigned short>& varMap);
+		Edge dynLinearSifting(Edge in, std::map<unsigned short, unsigned short>& varMap, bool onlySift=false);
+		Edge dynSifting(Edge in, std::map<unsigned short, unsigned short>& varMap);
+		Edge dynFlatLinearSifting(Edge in, std::map<unsigned short, unsigned short>& varMap, std::deque<Edge> &allDD, bool onlySift);
+		std::vector<Move> undoMoves(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::vector<Move> &moves);
+        int linearSiftingBackward(short &optimalPos, Edge in, std::map<unsigned short, unsigned short>& Map, std::vector<std::pair<std::pair<short, short>, uint32_t>> &moves);
+        void linearSiftingDown(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::vector<std::pair<std::pair<short, short>, uint32_t>> &prevMoves);
+        void linearSiftingUp(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::vector<std::pair<std::pair<short, short>, uint32_t>> &prevMoves);
+        void siftingDown(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::vector<std::pair<std::pair<short, short>, uint32_t>> &prevMoves);
+        void siftingUp(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::vector<std::pair<std::pair<short, short>, uint32_t>> &prevMoves);
+		void decRefForDyn(Edge &e);
+		void incRefForDyn(Edge &e);
+		uint64_t naiveCount(const Edge &in);
+		uint64_t computeLowerBoundDown(std::map<uint16_t, uint16_t>& varMap, uint16_t i);
+		uint64_t computeLowerBoundUp(std::map<uint16_t, uint16_t>& varMap, uint16_t i);
+
 
 		// utility
         /// Traverse DD and return product of edge weights along the way
