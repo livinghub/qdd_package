@@ -147,7 +147,7 @@ namespace dd {
     };
 
 	enum DynamicReorderingStrategy {
-		None, Sifting, Random, Window3, linearSifting, lbLinearSifting
+		None, Sifting, Random, Window3, linearSifting, lbLinearSifting, mixlinearSifting
 	};
 
 	enum Mode {
@@ -354,14 +354,17 @@ namespace dd {
 		Edge linearAndSiftingAux(Edge in, std::map<unsigned short, unsigned short>& varMap);
 		Edge lbLinearAndSiftingAux(Edge in, std::map<unsigned short, unsigned short>& varMap);
 		Edge linearAndSiftingAux(Edge in, std::map<unsigned short, unsigned short>& varMap, bool fg);
+		Edge mixLinearAndSiftingAux(Edge in, std::map<unsigned short, unsigned short>& varMap, bool fg);
 		Edge linearAndSiftingAux2(Edge in, std::map<unsigned short, unsigned short>& varMap, bool fg);
 		std::list<Move> undoMoves(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &moves);
 		std::list<Move> exchangMoves(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &moves);
         int linearAndSiftingBackward(short &optimalPos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &moves);
         std::list<Move> linearAndSiftingDown(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
         std::list<Move> lbLinearAndSiftingDown(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
+        std::list<Move> mixLinearAndSiftingDown(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
 		std::list<Move> linearAndSiftingUp(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
 		std::list<Move> lbLinearAndSiftingUp(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
+		std::list<Move> mixLinearAndSiftingUp(short &pos, Edge in, std::map<unsigned short, unsigned short>& Map, std::list<Move> &prevMoves);
 		std::tuple<Edge, unsigned int, unsigned int> linearSiftingv1(Edge in, std::map<unsigned short, unsigned short>& varMap);
 		void qmdd2ltqmdd(Edge in, std::map<unsigned short, unsigned short>& varMap, bool Mat[MAXN][MAXN]);
 		void ltqmdd2qmdd(Edge in, std::map<unsigned short, unsigned short>& varMap, bool Mat[MAXN][MAXN]);

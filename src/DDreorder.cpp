@@ -468,6 +468,7 @@ namespace dd {
 			case Window3: return window3(in, varMap);
 			case linearSifting: return linearAndSiftingAux(in, varMap, 1);
 			case lbLinearSifting: return lbLinearAndSiftingAux(in, varMap);
+			case mixlinearSifting: return mixLinearAndSiftingAux(in, varMap, 1);
 		}
 
 		return in;

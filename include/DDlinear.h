@@ -6,7 +6,13 @@
 #define LINEAR_TRANSFORM_MOVE 1
 #define INVERSE_TRANSFORM_MOVE 2
 #define UPDATE_MAP 3
+#define LOW_LINEAR_TRANSFORM_MOVE 5
+#define INV_LOW_LINEAR_TRANSFORM_MOVE 6
+#define UP_LINEAR_TRANSFORM_MOVE 7
+#define INV_UP_LINEAR_TRANSFORM_MOVE 8
 
+#define UPLT 1
+#define LOWLT 0
 namespace dd {
 
     typedef struct Move	{
